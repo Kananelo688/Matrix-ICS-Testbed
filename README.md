@@ -42,6 +42,7 @@ MATRIX addresses this by deploying three co-equal controllers from different ven
 ---
 
 ## Physical plant
+<img width="1589" height="862" alt="FicherTechnik 24v Production line" src="https://github.com/user-attachments/assets/be641968-c651-4cb2-a794-7df6805ae837" />
 
 The Fischertechnik 24V production line is a laboratory-scale manufacturing system consisting of three mechanically linked subsystems. A workpiece enters at the turntable, is processed through drilling and welding stations, is transferred to the conveyor belt, and is eventually palletised. The full I/O complement is 8 sensors and 10 actuators, all operating on 24VDC digital signals.
 

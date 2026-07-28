@@ -1,6 +1,6 @@
 """
 ab_client.py
-─────────────────────────────────────────────────────────────────────────────
+
 MATRIX Testbed — Raspberry Pi Middleware
 Allen-Bradley Micro820 Modbus TCP Client
 
@@ -19,7 +19,7 @@ Modbus register map (must match CCW Modbus mapping configuration exactly):
   See REGISTER_MAP and COIL_MAP below. Addresses are 0-based (pymodbus
   convention). CCW shows 1-based addresses — subtract 1 when cross-checking.
 
-─────────────────────────────────────────────────────────────────────────────
+
 Author : MATRIX / Intelligent Connectivity Group — UCT
 """
 
@@ -29,16 +29,16 @@ from datetime import datetime
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# Configuration
 
-PLC_IP          = "192.168.20.20"
+PLC_IP          = "192.168.50.20"
 MODBUS_PORT     = 502
 UNIT_ID         = 1     # Modbus slave/unit ID — default on Micro820
 
 POLL_INTERVAL   = 0.5   # seconds between polling cycles
 RECONNECT_DELAY = 5     # seconds between reconnection attempts
 
-# ── Modbus register map ───────────────────────────────────────────────────────
+# Modbus register map 
 # These addresses must match what you configured in CCW's Modbus mapping panel.
 # CCW address 1 = pymodbus address 0 (subtract 1 from CCW display value).
 #
@@ -53,28 +53,33 @@ RECONNECT_DELAY = 5     # seconds between reconnection attempts
 
 COIL_MAP = {
     # address : tag_name
-    0: "move_to_table",      # Q1 — motor direction toward turntable
-    1: "move_to_belt",       # Q2 — motor direction toward conveyor belt
-    2: "vacuum_gripper",     # Q8 — vacuum valve on/off
-    3: "handoff_from_s7",    # signal IN from S7-1200: "workpiece ready at table"
-    4: "handoff_to_opta",    # signal OUT to Opta: "workpiece deposited on belt"
+    0: "rotateToConveyor",      # Q1 — motor direction toward turntable
+    1: "rotateToTable",       # Q2 — motor direction toward conveyor belt
+    2: "vacuumGripper",     # Q8 — vacuum valve on/off
+    3: "controllerActiveIndicator",    # signal IN from S7-1200: "workpiece ready at table"
 }
 
 INPUT_MAP = {
     # address : tag_name
-    0: "conv_end_position",  # S1 (I1) — limit switch at conveyor belt end
-    1: "table_end_position", # S2 (I2) — limit switch at turntable end
+    0: "transferUnitAtConveyor",  # S1 (I1) — limit switch at conveyor belt end
+    1: "transferUnitAtTurntable", # S2 (I2) — limit switch at turntable end
+    2: "turntableInPosition", # S4 - limit switch when table in home position.
+
 }
 
 REG_MAP = {
     # address : tag_name
-    0: "unit_position_code", # 0=unknown, 1=at table, 2=at belt, 3=in transit
+    0: "siemensHandshakeCode",
+    1: "arduinoHandshakeCode",
+    2: "unit_position_code", # 0=unknown, 1=at table, 2=at belt, 3=in transit   
 }
 
 # Derived string representation of unit_position_code
 _POSITION_LABELS = {0: "UNKNOWN", 1: "AT TABLE", 2: "AT BELT", 3: "IN TRANSIT"}
 
-# ── Logging ───────────────────────────────────────────────────────────────────
+_SIEMENS_HANDSHAKE_LABELS = {0: "IDLE", 1: "TRANSFER_PART_READY", 2: "TRANSFER_UNIT_DONE"}
+_ARDUINO_HANDSHAKE_LABELS = {0: "CONVERYOR_BELT_READY", 1: "TRANSPORT_PART_READY"}
+# Logging 
 
 logging.basicConfig(
     level=logging.INFO,
@@ -83,7 +88,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("ab_client")
 
-# ── Shared state (read by opcua_server.py) ────────────────────────────────────
+# Shared state (read by opcua_server.py) 
 
 state: dict = {}
 for maps in (COIL_MAP, INPUT_MAP, REG_MAP):
@@ -94,11 +99,11 @@ state["unit_position"]  = None   # human-readable string derived from REG 0
 state["_connected"]     = False
 state["_last_update"]   = None
 
-# ── Internal client reference (used by write_coil) ────────────────────────────
+# Internal client reference (used by write_coil)
 
 _client: AsyncModbusTcpClient | None = None
 
-# ── Polling logic ─────────────────────────────────────────────────────────────
+# Polling logic
 
 async def _poll(client: AsyncModbusTcpClient):
     """
@@ -130,9 +135,7 @@ async def _poll(client: AsyncModbusTcpClient):
     if INPUT_MAP:
         n_inputs = max(INPUT_MAP.keys()) + 1
         try:
-            result = await client.read_discrete_inputs(
-                address=0, count=n_inputs, slave=UNIT_ID
-            )
+            result = await client.read_discrete_inputs(address=0, count=n_inputs, slave=UNIT_ID)
             if result.isError():
                 log.warning(f"Discrete input read error: {result}")
             else:
@@ -171,7 +174,7 @@ async def _poll(client: AsyncModbusTcpClient):
         state["_last_update"] = datetime.now().isoformat()
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# Public API 
 
 async def write_coil(address: int, value: bool) -> bool:
     """
@@ -205,7 +208,7 @@ async def write_coil(address: int, value: bool) -> bool:
         return False
 
 
-# ── Main connection loop ──────────────────────────────────────────────────────
+# Main connection loop
 
 async def run():
     """
@@ -251,7 +254,7 @@ async def run():
         await asyncio.sleep(RECONNECT_DELAY)
 
 
-# ── Standalone test ───────────────────────────────────────────────────────────
+# Standalone test 
 
 if __name__ == "__main__":
     print("Running ab_client.py standalone — Ctrl+C to stop")

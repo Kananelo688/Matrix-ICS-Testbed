@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Root Version="7">
+  <LanguageContainerStyle DisplayGrid="false" FunctionBlockInstanceName="true" VariableDisplayMode="NameAndAlias" VariableAlpha="255" VariableTextColor="windowtext" VariableOnlineTextColor="Red" VariableBackgroundColor="White" VariableGradientColor="White" Font="Microsoft Sans Serif, 8pt" CellWidth="30" CellHeight="25" NbCellsShapeWidth="4" NbCellsShapeHeight="2" CoilAllAligned="false" FitToWindowWidthEnabled="true" RungColor="WhiteSmoke" LabelColor="LightGoldenrodYellow" CommentColor="White" TextCommentColor="Green" RungCommentFont="Microsoft Sans Serif, 8.25pt" PowerRailColor="Silver" DisplayBlockImage="true" DisplayComment="true" PenWidth="2" DisplayLabel="false" OperatorBlockBackgroundColor="buttonface" OperatorBlockGradientColor="buttonface" FunctionBackgroundColor="Ivory" FunctionGradientColor="Ivory" FunctionBlockBackgroundColor="Silver" FunctionBlockGradientColor="Silver" Index="0">
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLdRungShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" PowerRailColor="Silver" DisplayLabel="false" RungColor="WhiteSmoke" CommentColor="White" LabelColor="LightGoldenrodYellow" DisplayComment="true" Key="[0,1]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.Core.Shape.WbPouCallShape" Assembly="ISaGRAF.Workbench.Mlge.Core" FunctionBlockInstanceName="true" Alpha="255" Background="Silver" BackgroundGradient="Silver" Key="[0,1],[1,1]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLdRungShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" PowerRailColor="Silver" DisplayLabel="false" RungColor="WhiteSmoke" CommentColor="White" LabelColor="LightGoldenrodYellow" DisplayComment="true" Key="[0,3]">
+      <Text>Set the partAvailable Flag, when Siemens Writes 1 to the seimensHandshakeReg exposed on the Modbus TCP.</Text>
+      <RtfText>{\rtf1\ansi\ansicpg1252\deff0\deflang1033{\fonttbl{\f0\fnil\fcharset0 Microsoft Sans Serif;}}
+{\colortbl ;\red0\green128\blue0;}
+\viewkind4\uc1\pard\cf1\f0\fs17 Set the partAvailable Flag, when Siemens Writes 1 to the seimensHandshakeReg exposed on the Modbus TCP.\par
+}
+</RtfText>
+    </ShapeStyle>
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.Core.Shape.WbPouCallShape" Assembly="ISaGRAF.Workbench.Mlge.Core" FunctionBlockInstanceName="true" Alpha="255" Background="buttonface" BackgroundGradient="buttonface" Key="[0,3],[1,3]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLDVariableAccessShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" Alpha="255" Background="#FFFFFFFF" BackgroundGradient="#FFFFFFFF" FontColor="windowtext" DisplayMode="NameAndAlias" Key="[0,3],[1,3],[1,4],[1,4]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLDVariableAccessShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" Alpha="255" Background="#FFFFFFFF" BackgroundGradient="#FFFFFFFF" FontColor="windowtext" DisplayMode="NameAndAlias" Key="[0,3],[1,3],[1,5],[1,5]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLdSubBranchShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" FontColor="windowtext" DisplayMode="NameAndAlias" Key="[0,3],[4,3]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLdRungShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" PowerRailColor="Silver" DisplayLabel="false" RungColor="WhiteSmoke" CommentColor="White" LabelColor="LightGoldenrodYellow" DisplayComment="true" Key="[0,7]">
+      <Text>As long as siemensHandshakeReg is not "TransferRead", keep "partAvailable" flag reset to 0. this will be true for as long as seimensHandshakeReg is both 2 (Transfer done, written by this controller) or 0 (Transfer IDLE, which is written Seimens when there's no part available) </Text>
+      <RtfText>{\rtf1\ansi\ansicpg1252\deff0\deflang1033{\fonttbl{\f0\fnil\fcharset0 Microsoft Sans Serif;}}
+{\colortbl ;\red0\green128\blue0;}
+\viewkind4\uc1\pard\cf1\f0\fs17 As long as siemensHandshakeReg is not "TransferRead", keep "partAvailable" flag reset to 0. this will be true for as long as seimensHandshakeReg is both 2 (Transfer done, written by this controller) or 0 (Transfer IDLE, which is written Seimens when there's no part available) \par
+}
+</RtfText>
+    </ShapeStyle>
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.Core.Shape.WbPouCallShape" Assembly="ISaGRAF.Workbench.Mlge.Core" FunctionBlockInstanceName="true" Alpha="255" Background="buttonface" BackgroundGradient="buttonface" Key="[0,7],[1,7]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLDVariableAccessShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" Alpha="255" Background="#FFFFFFFF" BackgroundGradient="#FFFFFFFF" FontColor="windowtext" DisplayMode="NameAndAlias" Key="[0,7],[1,7],[1,8],[1,8]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLDVariableAccessShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" Alpha="255" Background="#FFFFFFFF" BackgroundGradient="#FFFFFFFF" FontColor="windowtext" DisplayMode="NameAndAlias" Key="[0,7],[1,7],[1,9],[1,9]" />
+    <ShapeStyle Type="ISaGRAF.Workbench.Mlge.LanguageContainer.LD.Shape.WbLdCoilShape" Assembly="ISaGRAF.Workbench.Mlge.LanguageContainer.LD" FontColor="windowtext" DisplayMode="NameAndAlias" Key="[0,7],[4,7]" />
+  </LanguageContainerStyle>
+</Root>

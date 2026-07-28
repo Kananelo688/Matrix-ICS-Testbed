@@ -1,0 +1,83 @@
+(****** QuickLD compiler *******************************)
+(****** Copyright Rockwell Automation Canada, Ltd ******)
+(****** ST *********************************************)
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,1
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB1 := TRUE ;
+IF __EDTB1 THEN
+(* FB call: TransferUnit *)
+TransferUnit_1() ;
+END_IF ;
+__MO_TRANSFERUNIT_1 := __EDTB1 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0001 ;
+
+
+(*************** Rung **********************************)
+(*Set the partAvailable Flag, when Siemens Writes 1 to the seimensHandshakeReg exposed on the Modbus TCP.*)
+__STEPPRAGMA
+0,3
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB3 := TRUE ;
+IF __EDTB3 THEN
+(* Operator output on : = with __EDTB2 *)
+__EDTB2 := (SEIMENSHANDSHAKEREG = 1) ;
+ELSE
+__EDTB2 := FALSE ;
+END_IF ;
+__MO_EQUAL_1 := __EDTB2 ;
+__EDTB4 := __EDTB2 ;
+IF __EDTB4 THEN
+(*Set coil*)
+PARTAVAILABLE := TRUE ;
+END_IF ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0002 ;
+
+
+(*************** Rung **********************************)
+(*As long as siemensHandshakeReg is not "TransferRead", keep "partAvailable" flag reset to 0. this will be true for as long as seimensHandshakeReg is both 2 (Transfer done, written by this controller) or 0 (Transfer IDLE, which is written Seimens when there*)
+__STEPPRAGMA
+0,7
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB6 := TRUE ;
+IF __EDTB6 THEN
+(* Operator output on : <> with __EDTB5 *)
+__EDTB5 := (SEIMENSHANDSHAKEREG <> 1) ;
+ELSE
+__EDTB5 := FALSE ;
+END_IF ;
+__MO_DIFF_1 := __EDTB5 ;
+__EDTB7 := __EDTB5 ;
+IF __EDTB7 THEN
+(*Reset coil*)
+PARTAVAILABLE := FALSE ;
+END_IF ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0003 ;
+
+
+(*************** Code for the end of File **************)
+__GL __LG0000 ;
+
+
+
+(*************** Local Symbols table *******************)
+(* __EDTB1 *)
+(* __EDTB2 *)
+(* __EDTB3 *)
+(* __EDTB4 *)
+(* __EDTB5 *)
+(* __EDTB6 *)
+(* __EDTB7 *)
+

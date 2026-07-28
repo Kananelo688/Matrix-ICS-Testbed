@@ -1,0 +1,7 @@
+# MATRIX Middleware — Raspberry Pi dependencies
+# Install: pip install -r requirements.txt --break-system-packages
+
+asyncua==1.0.6        # OPC-UA client (Siemens) and server (to Ignition)
+pymodbus==3.6.9       # Modbus TCP client (Opta + Allen-Bradley)
+pycomm3==1.2.11       # EtherNet/IP CIP client (Allen-Bradley identity)
+python-snap7==1.3     # S7comm client — used if Siemens firmware < v4.1

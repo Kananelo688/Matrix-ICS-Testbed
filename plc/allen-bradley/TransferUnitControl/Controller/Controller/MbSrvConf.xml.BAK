@@ -1,0 +1,7 @@
+<modbusServer Version="2.0">
+  <modbusRegister name="HOLDING_REGISTERS">
+    <mapping variable="ModbusHoldingReg" parent="Micro820" dataType="Int" address="400001">
+      <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
+    </mapping>
+  </modbusRegister>
+</modbusServer>

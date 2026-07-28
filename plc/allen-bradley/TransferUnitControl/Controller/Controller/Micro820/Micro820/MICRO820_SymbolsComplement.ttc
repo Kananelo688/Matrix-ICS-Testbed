@@ -1,0 +1,8 @@
+[BEGIN FB INPUTS]
+I1=micro820.micro820.main/transferunit_1.droppingtimer.in,0x1673,BOOL
+I2=micro820.micro820.main/transferunit_1.droppingtimer.pt,0x17B0,TIME
+I3=micro820.micro820.main/transferunit_1.grippingtimer.in,0x1673,BOOL
+I4=micro820.micro820.main/transferunit_1.grippingtimer.pt,0x17B0,TIME
+I5=micro820.micro820.main/transferunit_1.retreatingtimer.in,0x1673,BOOL
+I6=micro820.micro820.main/transferunit_1.retreatingtimer.pt,0x17B4,TIME
+[END]

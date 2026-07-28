@@ -1,0 +1,27 @@
+PROGRAM Main
+#info= QLD
+BOF
+
+
+(**)
+
+SOR  [0,1] (**) (**)  FB  [1,0] (*TransferUnit*) (*TransferUnit_1*) ( (*EN:EN*)(**) (**) ; (*ENO:ENO*)(**) (**) )
+EOR [4,0]
+
+
+(*Set the partAvailable Flag, when Siemens Writes 1 to the seimensHandshakeReg exposed on the Modbus TCP.*)
+
+SOR  [0,3] (**) (**)  FB  [1,0] (*=*) (*9*) ( (*EN:EN*)(**) (**)  , (*i1:*)(*seimensHandshakeReg*) (**)  , (*i2:*)(*1*) (**) ; (*o1:*)(**) (**) )  OTS  [4,0] (*partAvailable*) (**)
+EOR [5,0]
+
+
+(*As long as siemensHandshakeReg is not "TransferRead", keep "partAvailable" flag reset to 0. this will be true for as long as seimensHandshakeReg is both 2 (Transfer done, written by this controller) or 0 (Transfer IDLE, which is written Seimens when there*)
+
+SOR  [0,7] (**) (**)  FB  [1,0] (*<>*) (*10*) ( (*EN:EN*)(**) (**)  , (*i1:*)(*seimensHandshakeReg*) (**)  , (*i2:*)(*1*) (**) ; (*o1:*)(**) (**) )  OTR  [4,0] (*partAvailable*) (**)
+EOR [5,0]
+EOF
+#end_info
+#info= ID_MAX
+NextId=13
+#end_info
+END_PROGRAM

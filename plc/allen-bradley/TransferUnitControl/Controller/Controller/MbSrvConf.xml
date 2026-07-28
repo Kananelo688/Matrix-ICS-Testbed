@@ -1,0 +1,10 @@
+<modbusServer Version="2.0">
+  <modbusRegister name="HOLDING_REGISTERS">
+    <mapping variable="seimensHandshakeReg" parent="Micro820" dataType="Int" address="400001" va="0x466">
+      <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
+    </mapping>
+    <mapping variable="optaHandshakeReg" parent="Micro820" dataType="Int" address="400002">
+      <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
+    </mapping>
+  </modbusRegister>
+</modbusServer>

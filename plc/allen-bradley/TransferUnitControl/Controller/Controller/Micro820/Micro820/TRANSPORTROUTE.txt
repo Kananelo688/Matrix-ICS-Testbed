@@ -1,0 +1,405 @@
+(****** QuickLD compiler *******************************)
+(****** Copyright Rockwell Automation Canada, Ltd ******)
+(****** ST *********************************************)
+
+(*************** Rung **********************************)
+(*IDLE STATE: transportation = 0, B1 not interrupted*)
+__STEPPRAGMA
+0,1
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB2 := TRUE ;
+IF __EDTB2 THEN
+(* Operator output on : = with __EDTB1 *)
+__EDTB1 := (TRANSPORTATIONSTEP = 0) ;
+ELSE
+__EDTB1 := FALSE ;
+END_IF ;
+__MO_EQUAL_1 := __EDTB1 ;
+__EDTB3 := __EDTB1 AND CONVEYORTRANSFERDONE AND NOT(_IO_EM_DI_07) ;
+IF __EDTB3 THEN
+TRANSPORTATIONSTEP := (  1) ;
+END_IF ;
+__MO_1GAIN_1 := __EDTB3 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0001 ;
+
+
+(*************** Rung **********************************)
+(*SEPARATOR_CLOSING_STATE:*)
+__STEPPRAGMA
+0,5
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB5 := TRUE ;
+IF __EDTB5 THEN
+(* Operator output on : = with __EDTB4 *)
+__EDTB4 := (TRANSPORTATIONSTEP = 1) ;
+ELSE
+__EDTB4 := FALSE ;
+END_IF ;
+__MO_EQUAL_2 := __EDTB4 ;
+__EDTB6 := __EDTB4 AND _IO_EM_DI_06 AND NOT(_IO_EM_DO_04) ;
+IF __EDTB6 THEN
+TRANSPORTATIONSTEP := (  2) ;
+END_IF ;
+__MO_1GAIN_2 := __EDTB6 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0002 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,9
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB8 := TRUE ;
+IF __EDTB8 THEN
+(* Operator output on : = with __EDTB7 *)
+__EDTB7 := (TRANSPORTATIONSTEP = 2) ;
+ELSE
+__EDTB7 := FALSE ;
+END_IF ;
+__MO_EQUAL_3 := __EDTB7 ;
+__EDTB9 := __EDTB7 ;
+__EDTB11 := TRUE ;
+IF __EDTB11 THEN
+(* Operator output on : = with __EDTB10 *)
+__EDTB10 := (TRANSPORTATIONSTEP = 3) ;
+ELSE
+__EDTB10 := FALSE ;
+END_IF ;
+__MO_EQUAL_4 := __EDTB10 ;
+__EDTB12 := __EDTB10 ;
+__EDTB13 := (__EDTB9 OR __EDTB12) ;
+_IO_EM_DO_04 := __EDTB13 ;
+__EDTB14 := __EDTB13 ;
+IF __EDTB14 THEN
+(*Reset coil*)
+CONVEYORTRANSFERDONE := FALSE ;
+END_IF ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0003 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,16
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB16 := TRUE ;
+IF __EDTB16 THEN
+(* Operator output on : = with __EDTB15 *)
+__EDTB15 := (TRANSPORTATIONSTEP = 2) ;
+ELSE
+__EDTB15 := FALSE ;
+END_IF ;
+__MO_EQUAL_5 := __EDTB15 ;
+__EDTB17 := __EDTB15 AND _IO_EM_DO_04 ;
+IF __EDTB17 THEN
+TRANSPORTATIONSTEP := (  3) ;
+END_IF ;
+__MO_1GAIN_3 := __EDTB17 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0004 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,20
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB19 := TRUE ;
+IF __EDTB19 THEN
+(* Operator output on : = with __EDTB18 *)
+__EDTB18 := (TRANSPORTATIONSTEP = 3) ;
+ELSE
+__EDTB18 := FALSE ;
+END_IF ;
+__MO_EQUAL_6 := __EDTB18 ;
+_IO_EM_DO_03 := __EDTB18 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0005 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,24
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB21 := TRUE ;
+IF __EDTB21 THEN
+(* Operator output on : = with __EDTB20 *)
+__EDTB20 := (TRANSPORTATIONSTEP = 3) ;
+ELSE
+__EDTB20 := FALSE ;
+END_IF ;
+__MO_EQUAL_7 := __EDTB20 ;
+(* FB call: TON *)
+transportingTimer(__EDTB20, T#3S) ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0006 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,28
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB23 := TRUE ;
+IF __EDTB23 THEN
+(* Operator output on : = with __EDTB22 *)
+__EDTB22 := (TRANSPORTATIONSTEP = 3) ;
+ELSE
+__EDTB22 := FALSE ;
+END_IF ;
+__MO_EQUAL_8 := __EDTB22 ;
+__EDTB24 := __EDTB22 AND TRANSPORTINGTIMER.Q ;
+__EDTB25 := __EDTB24 ;
+IF __EDTB25 THEN
+TRANSPORTATIONSTEP := (  4) ;
+END_IF ;
+__MO_1GAIN_4 := __EDTB25 ;
+__EDTB26 := __EDTB25 ;
+__EDTB27 := __EDTB24 ;
+IF __EDTB27 THEN
+NUMBEROFPARTS := (NUMBEROFPARTS + 1) ;
+END_IF ;
+__MO_PLUS_1 := __EDTB27 ;
+__EDTB28 := __EDTB27 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0007 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,34
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB30 := TRUE ;
+IF __EDTB30 THEN
+(* Operator output on : = with __EDTB29 *)
+__EDTB29 := (TRANSPORTATIONSTEP = 4) ;
+ELSE
+__EDTB29 := FALSE ;
+END_IF ;
+__MO_EQUAL_9 := __EDTB29 ;
+__EDTB32 := __EDTB29 ;
+IF __EDTB32 THEN
+(* Operator output on : = with __EDTB31 *)
+__EDTB31 := (3 = NUMBEROFPARTS) ;
+ELSE
+__EDTB31 := FALSE ;
+END_IF ;
+__MO_EQUAL_10 := __EDTB31 ;
+__EDTB33 := __EDTB31 ;
+IF __EDTB33 THEN
+TRANSPORTATIONSTEP := (  5) ;
+END_IF ;
+__MO_1GAIN_5 := __EDTB33 ;
+__EDTB34 := __EDTB33 ;
+__EDTB35 := __EDTB31 ;
+IF __EDTB35 THEN
+NUMBEROFPARTS := (  0) ;
+END_IF ;
+__MO_1GAIN_6 := __EDTB35 ;
+__EDTB36 := __EDTB35 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0008 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,39
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB38 := TRUE ;
+IF __EDTB38 THEN
+(* Operator output on : = with __EDTB37 *)
+__EDTB37 := (TRANSPORTATIONSTEP = 4) ;
+ELSE
+__EDTB37 := FALSE ;
+END_IF ;
+__MO_EQUAL_11 := __EDTB37 ;
+__EDTB40 := __EDTB37 ;
+IF __EDTB40 THEN
+(* Operator output on : < with __EDTB39 *)
+__EDTB39 := (NUMBEROFPARTS < 3) ;
+ELSE
+__EDTB39 := FALSE ;
+END_IF ;
+__MO_LESS_1 := __EDTB39 ;
+__EDTB41 := __EDTB39 ;
+IF __EDTB41 THEN
+TRANSPORTATIONSTEP := (  0) ;
+END_IF ;
+__MO_1GAIN_7 := __EDTB41 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG0009 ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,43
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB43 := TRUE ;
+IF __EDTB43 THEN
+(* Operator output on : = with __EDTB42 *)
+__EDTB42 := (TRANSPORTATIONSTEP = 5) ;
+ELSE
+__EDTB42 := FALSE ;
+END_IF ;
+__MO_EQUAL_12 := __EDTB42 ;
+__EDTB44 := __EDTB42 ;
+__EDTB46 := TRUE ;
+IF __EDTB46 THEN
+(* Operator output on : = with __EDTB45 *)
+__EDTB45 := (TRANSPORTATIONSTEP = 6) ;
+ELSE
+__EDTB45 := FALSE ;
+END_IF ;
+__MO_EQUAL_13 := __EDTB45 ;
+__EDTB47 := __EDTB45 ;
+_IO_EM_DO_02 := (__EDTB44 OR __EDTB47) ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG000A ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,50
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB49 := TRUE ;
+IF __EDTB49 THEN
+(* Operator output on : = with __EDTB48 *)
+__EDTB48 := (TRANSPORTATIONSTEP = 5) ;
+ELSE
+__EDTB48 := FALSE ;
+END_IF ;
+__MO_EQUAL_14 := __EDTB48 ;
+__EDTB50 := __EDTB48 AND NOT(_IO_EM_DI_06) ;
+IF __EDTB50 THEN
+TRANSPORTATIONSTEP := (  6) ;
+END_IF ;
+__MO_1GAIN_8 := __EDTB50 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG000B ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,54
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+__EDTB52 := TRUE ;
+IF __EDTB52 THEN
+(* Operator output on : = with __EDTB51 *)
+__EDTB51 := (TRANSPORTATIONSTEP = 6) ;
+ELSE
+__EDTB51 := FALSE ;
+END_IF ;
+__MO_EQUAL_15 := __EDTB51 ;
+__EDTB53 := __EDTB51 AND _IO_EM_DI_06 ;
+IF __EDTB53 THEN
+TRANSPORTATIONSTEP := (  0) ;
+END_IF ;
+__MO_1GAIN_9 := __EDTB53 ;
+
+(*************** Code for the end of Rung **************)
+__GL __LG000C ;
+
+
+(*************** Rung **********************************)
+(**)
+__STEPPRAGMA
+0,58
+__ENDSTEPPRAGMA
+(*Label :*)(**)
+
+(*************** Code for the end of Rung **************)
+__GL __LG000D ;
+
+
+(*************** Code for the end of File **************)
+__GL __LG0000 ;
+
+
+
+(*************** Local Symbols table *******************)
+(* __EDTB1 *)
+(* __EDTB2 *)
+(* __EDTB3 *)
+(* __EDTB4 *)
+(* __EDTB5 *)
+(* __EDTB6 *)
+(* __EDTB7 *)
+(* __EDTB8 *)
+(* __EDTB9 *)
+(* __EDTB10 *)
+(* __EDTB11 *)
+(* __EDTB12 *)
+(* __EDTB13 *)
+(* __EDTB14 *)
+(* __EDTB15 *)
+(* __EDTB16 *)
+(* __EDTB17 *)
+(* __EDTB18 *)
+(* __EDTB19 *)
+(* __EDTB20 *)
+(* __EDTB21 *)
+(* __EDTB22 *)
+(* __EDTB23 *)
+(* __EDTB24 *)
+(* __EDTB25 *)
+(* __EDTB26 *)
+(* __EDTB27 *)
+(* __EDTB28 *)
+(* __EDTB29 *)
+(* __EDTB30 *)
+(* __EDTB31 *)
+(* __EDTB32 *)
+(* __EDTB33 *)
+(* __EDTB34 *)
+(* __EDTB35 *)
+(* __EDTB36 *)
+(* __EDTB37 *)
+(* __EDTB38 *)
+(* __EDTB39 *)
+(* __EDTB40 *)
+(* __EDTB41 *)
+(* __EDTB42 *)
+(* __EDTB43 *)
+(* __EDTB44 *)
+(* __EDTB45 *)
+(* __EDTB46 *)
+(* __EDTB47 *)
+(* __EDTB48 *)
+(* __EDTB49 *)
+(* __EDTB50 *)
+(* __EDTB51 *)
+(* __EDTB52 *)
+(* __EDTB53 *)
+

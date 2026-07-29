@@ -1,6 +1,6 @@
 """
 opta_client.py
-─────────────────────────────────────────────────────────────────────────────
+
 MATRIX Testbed — Raspberry Pi Middleware
 Arduino Opta Modbus TCP Client
 
@@ -25,8 +25,8 @@ IMPORTANT — Modbus address convention:
   The address map below MUST match the variable declaration order in your
   PLC IDE program. We will align this when configuring the Opta.
 
-─────────────────────────────────────────────────────────────────────────────
-Author : MATRIX / Intelligent Connectivity Group — UCT
+
+Author : Kananelo Chabeli
 """
 
 import asyncio
@@ -35,16 +35,16 @@ from datetime import datetime
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# Configuration 
 
-PLC_IP          = "192.168.20.30"
+PLC_IP          = "192.168.50.30" 
 MODBUS_PORT     = 502
 UNIT_ID         = 255   # PLC IDE default unit identifier — do not change
 
 POLL_INTERVAL   = 0.5   # seconds between polling cycles
 RECONNECT_DELAY = 5     # seconds between reconnection attempts
 
-# ── Modbus address maps ───────────────────────────────────────────────────────
+# Modbus address maps
 # Addresses are 0-based (pymodbus convention).
 # PLC IDE variable declaration order determines coil/input addresses.
 # Align these maps with your PLC IDE variable list before running.
@@ -55,27 +55,28 @@ RECONNECT_DELAY = 5     # seconds between reconnection attempts
 
 COIL_MAP = {
     # address : tag_name                    physical signal
-    0: "motor_belt",                      # Q5 — conveyor belt motor
-    1: "separator",                       # Q6 — separator valve
-    2: "pusher",                          # Q3 — motorised pusher
-    3: "handoff_from_ab",                 # signal IN from Allen-Bradley
-    4: "handoff_to_s7",                   # signal OUT to S7-1200
+    0: "conveyorBelt",                    # Q5 — conveyor belt motor
+    1: "separatorValve",                  # Q6 — separator valve
+    2: "sliderMotor",                     # Q3 — motorised pusher
+    3: "arduinoActiveIndicator",          # signal IN from Allen-Bradley
 }
 
 INPUT_MAP = {
     # address : tag_name                    physical signal
-    0: "workpiece_on_belt",               # B1 (I4) — light barrier, belt entry
-    1: "pallet_top",                      # B2 (I5) — light barrier, pallet top
-    2: "pallet_ready",                    # B3 (I7) — light barrier, pallet present
-    3: "slider_home",                     # S3 (I3) — limit switch, pusher home
+    0: "workpieceOnConveyor",               # B1 (I4) — light barrier, belt entry
+    1: "palletReady",                      # B2 (I5) — light barrier, pallet top
+    2: "workpieceOnPallet",                    # B3 (I7) — light barrier, pallet present
+    3: "sliderInPosition",                     # S3 (I3) — limit switch, pusher home
 }
 
 REGISTER_MAP = {
-    # address : tag_name                    description
-    0: "workpiece_count",                 # running count 0–3 before palletising
+    # # address : tag_name                    description
+    # 1: "allenBradleyHandshakeCode",
+    # 2: "workpieceCount",                 # running count 0–3 before palletising
+    # 3: "totalWorkpieces"
 }
 
-# ── Logging ───────────────────────────────────────────────────────────────────
+# Logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -84,7 +85,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("opta_client")
 
-# ── Shared state (read by opcua_server.py) ────────────────────────────────────
+# Shared state (read by opcua_server.py)
 
 state: dict = {}
 for maps in (COIL_MAP, INPUT_MAP, REGISTER_MAP):
@@ -94,11 +95,11 @@ for maps in (COIL_MAP, INPUT_MAP, REGISTER_MAP):
 state["_connected"]   = False
 state["_last_update"] = None
 
-# ── Internal client reference (used by write_coil) ────────────────────────────
+# Internal client reference (used by write_coil)
 
 _client: AsyncModbusTcpClient | None = None
 
-# ── Polling logic ─────────────────────────────────────────────────────────────
+# Polling logic
 
 async def _poll(client: AsyncModbusTcpClient):
     """
@@ -112,7 +113,7 @@ async def _poll(client: AsyncModbusTcpClient):
     """
     changed = False
 
-    # ── Read output coils (actuator states + handoff flags)
+    # Read output coils (actuator states + handoff flags)
     if COIL_MAP:
         n_coils = max(COIL_MAP.keys()) + 1
         try:
@@ -131,7 +132,7 @@ async def _poll(client: AsyncModbusTcpClient):
         except ModbusException as exc:
             log.warning(f"Coil read exception: {exc}")
 
-    # ── Read discrete inputs (physical sensor states)
+    # Read discrete inputs (physical sensor states)
     if INPUT_MAP:
         n_inputs = max(INPUT_MAP.keys()) + 1
         try:
@@ -150,11 +151,11 @@ async def _poll(client: AsyncModbusTcpClient):
         except ModbusException as exc:
             log.warning(f"Discrete input exception: {exc}")
 
-    # ── Read holding registers (workpiece counter)
+    # Read holding registers (workpiece counter)
     if REGISTER_MAP:
         n_regs = max(REGISTER_MAP.keys()) + 1
         try:
-            result = await client.read_holding_registers(
+            result = await client.read_input_registers(
                 address=0, count=n_regs, slave=UNIT_ID
             )
             if result.isError():
@@ -173,7 +174,7 @@ async def _poll(client: AsyncModbusTcpClient):
         state["_last_update"] = datetime.now().isoformat()
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# Public API
 
 async def write_coil(address: int, value: bool) -> bool:
     """
@@ -233,7 +234,7 @@ async def write_register(address: int, value: int) -> bool:
         return False
 
 
-# ── Main connection loop ──────────────────────────────────────────────────────
+# Main connection loop
 
 async def run():
     """
@@ -284,7 +285,7 @@ async def run():
         await asyncio.sleep(RECONNECT_DELAY)
 
 
-# ── Standalone test ───────────────────────────────────────────────────────────
+ # Standalone test 
 
 if __name__ == "__main__":
     print("Running opta_client.py standalone — Ctrl+C to stop")
@@ -295,7 +296,7 @@ if __name__ == "__main__":
         try:
             while True:
                 await asyncio.sleep(2)
-                print("\n── Current state ──────────────────────")
+                print("\n-------------Current state ------------- ")
                 for k, v in state.items():
                     print(f"  {k:<30} {v}")
         except asyncio.CancelledError:
@@ -307,3 +308,5 @@ if __name__ == "__main__":
         asyncio.run(_test())
     except KeyboardInterrupt:
         print("\nStopped.")
+
+

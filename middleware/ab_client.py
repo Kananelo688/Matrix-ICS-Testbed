@@ -71,7 +71,7 @@ REG_MAP = {
     # address : tag_name
     0: "siemensHandshakeCode",
     1: "arduinoHandshakeCode",
-    2: "unit_position_code", # 0=unknown, 1=at table, 2=at belt, 3=in transit   
+    2: "transferUnitPositionCode", # 0=unknown, 1=at table, 2=at belt, 3=in transit   
 }
 
 # Derived string representation of unit_position_code

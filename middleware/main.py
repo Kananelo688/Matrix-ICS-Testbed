@@ -1,6 +1,5 @@
 """
 main.py
-─────────────────────────────────────────────────────────────────────────────
 MATRIX Testbed — Raspberry Pi Middleware Entry Point
 
 Launches all four concurrent async tasks:
@@ -12,7 +11,6 @@ Launches all four concurrent async tasks:
 Run on the Raspberry Pi:
     python main.py
 
-─────────────────────────────────────────────────────────────────────────────
 """
 
 import asyncio
@@ -26,10 +24,10 @@ import opcua_server
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s  [MAIN]  %(levelname)s  %(message)s",
+    format="%(asctime)s  [%(name)s]  %(levelname)s  %(message)s",
     datefmt="%H:%M:%S"
 )
-log = logging.getLogger("main")
+log = logging.getLogger("MIDDLEWARE")
 
 
 async def run():

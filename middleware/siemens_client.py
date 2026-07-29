@@ -89,10 +89,10 @@ NODE_DEFS = {
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s  [SIEMENS]  %(levelname)s  %(message)s",
+    format="%(asctime)s  [%(name)s]  %(levelname)s  %(message)s",
     datefmt="%H:%M:%S"
 )
-log = logging.getLogger("siemens_client")
+log = logging.getLogger("SIEMENS_CLIENT")
 
 # Shared state (read by opcua_server.py) 
 

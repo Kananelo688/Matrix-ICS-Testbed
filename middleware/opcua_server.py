@@ -31,18 +31,21 @@ except ImportError:
 
 # Configuration 
 
-SERVER_ENDPOINT = "opc.tcp://0.0.0.0:4840"
+SERVER_ENDPOINT = "opc.tcp://192.168.50.1:4840"
 NAMESPACE_URI   = "urn:MATRIX.Middleware.OPC-UA"
 SERVER_NAME     = "MATRIX ICS Testbed — Middleware OPC-UA Server"
 UPDATE_INTERVAL = 0.5  # seconds
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s  [OPC-UA SERVER]  %(levelname)s  %(message)s",
+    format="%(asctime)s  [%(name)s]  %(levelname)s  %(message)s",
     datefmt="%H:%M:%S"
 )
-log = logging.getLogger("opcua_server")
+log = logging.getLogger("OPC_UA_SERVER")
 
+logging.getLogger("asyncua").setLevel(logging.WARNING)
+logging.getLogger("asyncua.server.address_space").setLevel(logging.WARNING)
+logging.getLogger("asyncua.server.node_management").setLevel(logging.WARNING)
 # ── Mock states for standalone mode ──────────────────────────────────────────
 
 if _STANDALONE:
@@ -214,9 +217,9 @@ def _coerce(tag: str, raw):
             if vtype == ua.VariantType.Boolean:
                 return bool(raw)
             elif vtype == ua.VariantType.Int16:
-                return int(raw) if raw is not None else 0
+                return ua.Variant(int(raw) if raw is not None else 0, ua.VariantType.Int16)
             elif vtype == ua.VariantType.String:
-                return str(raw) if raw is not None else ""
+                return ua.Variant(str(raw) if raw is not None else "", ua.VariantType.String)
     return raw
 
 # Update loop
@@ -259,7 +262,7 @@ async def run():
     await server.init()
     server.set_endpoint(SERVER_ENDPOINT)
     server.set_server_name(SERVER_NAME)
-    await server.set_security_policy([ua.SecurityPolicyType.NoSecurity])
+    server.set_security_policy([ua.SecurityPolicyType.NoSecurity])
 
     ns = await server.register_namespace(NAMESPACE_URI)
     log.info(f"Namespace '{NAMESPACE_URI}' → index {ns}")

@@ -28,7 +28,7 @@ import logging
 from datetime import datetime
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
-
+import ctypes
 # Configuration
 
 PLC_IP          = "192.168.50.20"
@@ -75,18 +75,25 @@ REG_MAP = {
 }
 
 # Derived string representation of unit_position_code
-_POSITION_LABELS = {0: "UNKNOWN", 1: "AT TABLE", 2: "AT BELT", 3: "IN TRANSIT"}
+_POSITION_LABELS = {ctypes.c_int16(0).value: "UNKNOWN", 
+                    ctypes.c_int16(1).value: "AT TABLE", 
+                    ctypes.c_int16(2).value: "AT BELT", 
+                    ctypes.c_int16(3).value: "IN TRANSIT"}
 
-_SIEMENS_HANDSHAKE_LABELS = {0: "IDLE", 1: "TRANSFER_PART_READY", 2: "TRANSFER_UNIT_DONE"}
-_ARDUINO_HANDSHAKE_LABELS = {0: "CONVERYOR_BELT_READY", 1: "TRANSPORT_PART_READY"}
+_SIEMENS_HANDSHAKE_LABELS = {ctypes.c_int16(0).value: "IDLE", 
+                             ctypes.c_int16(1).value: "TRANSFER_PART_READY", 
+                             ctypes.c_int16(2).value: "TRANSFER_UNIT_DONE"}
+
+_ARDUINO_HANDSHAKE_LABELS = {ctypes.c_int16(0).value: "CONVERYOR_BELT_READY", 
+                             ctypes.c_int16(1).value: "TRANSPORT_PART_READY"}
 # Logging 
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s  [AB_MICRO820]  %(levelname)s  %(message)s",
+    format="%(asctime)s  [%(name)s]  %(levelname)s  %(message)s",
     datefmt="%H:%M:%S"
 )
-log = logging.getLogger("ab_client")
+log = logging.getLogger("AB_CLIENT")
 
 # Shared state (read by opcua_server.py) 
 

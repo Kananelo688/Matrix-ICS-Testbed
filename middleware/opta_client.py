@@ -80,10 +80,10 @@ REGISTER_MAP = {
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s  [OPTA]  %(levelname)s  %(message)s",
+    format="%(asctime)s  [%(name)s]  %(levelname)s  %(message)s",
     datefmt="%H:%M:%S"
 )
-log = logging.getLogger("opta_client")
+log = logging.getLogger("OPTA_CLIENT")
 
 # Shared state (read by opcua_server.py)
 

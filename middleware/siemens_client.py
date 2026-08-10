@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 siemens_client.py
 
@@ -26,7 +27,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
-from asyncua import Client, Node
+from asyncua import Client, Node, client
 from asyncua.common.subscription import DataChangeNotif
 
 # Configurations 
@@ -47,7 +48,7 @@ POLL_INTERVAL   = 0.5 # seconds — subscription publishing interval
 # Common TIA Portal pattern:
 #   "urn:SIMATIC.S7-1200.OPC-UA.Application:PLC_1"
 # You may need to browse ns=0;i=2255 (NamespaceArray) to find your index.
-NAMESPACE_URI   = "urn:SIMATIC.S7-1200.OPC-UA.Application:PLC_1"
+NAMESPACE_URI   = "http://ServerInterface"
 
 # Node ID map
 # Format: tag_name → OPC-UA NodeId string
@@ -62,30 +63,25 @@ NAMESPACE_URI   = "urn:SIMATIC.S7-1200.OPC-UA.Application:PLC_1"
 #   ns=<idx>;s="<DBName>"."<VariableName>"
 
 NODE_DEFS = {
-    # ── Process image inputs (Turntable struct)
-    "turntableInPosition":        "ns=4;i=5",
-    "magazineEmpty":              "ns=4;i=6",
-    "motorTurntable":             "ns=4;i=7",
-    "drillActive":                "ns=4;i=8",
-    "weldActive":                 "ns=4;i=9",
-    "magazinePart":               "ns=4;i=10",
-    "transferPart":               "ns=4;i=11",  # transferReady
-    "sliderMagazine":             "ns=4;i=12",
-    "weldingPart":                "ns=4;i=13",
-    "drillPart":                  "ns=4;i=14",
-    
-    # ── Commands struct
-    "siemensStart":               "ns=4;i=18",  # startCommand
-    "siemensStop":                "ns=4;i=19",  # stopCommand
-    "siemensReset":               "ns=4;i=20",  # resetCommand
-    
-    # ── Diagnostics struct
-    "siemensCycleCount":          "ns=4;i=24",  # cycleCount
-    "siemensPeerCommunicationOk": "ns=4;i=25",  # peerCommunicationOK
-    "siemensHealthy":             "ns=4;i=26",  # controllerHealthy
+    "inPosition": "ns=4;i=5",
+    "magazineEmpty": "ns=4;i=6",
+    "motorTurntable": "ns=4;i=7",
+    "drillActive": "ns=4;i=8",
+    "weldActive": "ns=4;i=9",
+    "magazinePart": "ns=4;i=10",
+    "transferPart": "ns=4;i=11",
+    "sliderMagazine": "ns=4;i=12",
+    "weldingPart": "ns=4;i=13",
+    "drillPart": "ns=4;i=14",
+    "startCommand": "ns=4;i=18",
+    "stopCommand": "ns=4;i=19",
+    "resetCommand": "ns=4;i=20",
+    "completed_pieces": "ns=4;i=24",
+    "peerCommunicationOK": "ns=4;i=25",
+    "controllerActive": "ns=4;i=26",
 }
 
-# ── Logging
+# Logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,7 +96,16 @@ state: dict = {tag: None for tag in NODE_DEFS}
 state["_connected"] = False
 state["_last_update"] = None
 
-# Subscription handler 
+# Subscription handler
+async def browse_recursive(node, indent=0):
+    children = await node.get_children()
+    for child in children:
+        name = (await child.read_browse_name()).Name
+        if name == "Server":
+            continue  # skip built-in diagnostics tree
+        nid = child.nodeid.to_string()
+        print("  " * indent + f"{name}: {nid}")
+        await browse_recursive(child, indent + 1)
 
 class TurntableHandler:
     """
@@ -129,33 +134,32 @@ _node_id_to_tag: dict = {}
 
 
 # async def _resolve_nodes(client: Client) -> dict[str, Node]:
-#     """
-#     Resolves NAMESPACE_URI to its index on this server, then builds
-#     a {tag_name: Node} dict for all entries in NODE_DEFS.
-#     """
-#     ns_idx = await client.get_namespace_index(NAMESPACE_URI)
-#     log.info(f"Namespace '{NAMESPACE_URI}' → index {ns_idx}")
+# #     """
+# #     Resolves NAMESPACE_URI to its index on this server, then builds
+# #     a {tag_name: Node} dict for all entries in NODE_DEFS.
+# #     """
+#      ns_idx = await client.get_namespace_index(NAMESPACE_URI)
+#      log.info(f"Namespace '{NAMESPACE_URI}' → index {ns_idx}")
+#      nodes = {}
+#      for tag, identifier in NODE_DEFS.items():
+#          node_id = f'ns={ns_idx};s={identifier}'
+#          node = client.get_node(node_id)
+#          nodes[tag] = node
+#          _node_id_to_tag[node.nodeid.to_string()] = tag
+#          log.debug(f"  Resolved  {tag:<30} ← {node_id}")
 
-#     nodes = {}
-#     for tag, identifier in NODE_DEFS.items():
-#         node_id = f"ns={ns_idx};s={identifier}"
-#         node = client.get_node(node_id)
-#         nodes[tag] = node
-#         _node_id_to_tag[node.nodeid.to_string()] = tag
-#         log.debug(f"  Resolved  {tag:<30} ← {node_id}")
-
-#     return nodes
+#      return nodes
 
 async def _resolve_nodes(client: Client) -> dict[str, Node]:
     """
-    Fetches Node objects directly using the fully qualified numeric NodeIds.
+        Fetches Node objects directly using the fully qualified numeric NodeIds.
     """
     nodes = {}
     for tag, node_id in NODE_DEFS.items():
-        node = client.get_node(node_id)
-        nodes[tag] = node
-        _node_id_to_tag[node.nodeid.to_string()] = tag
-        log.debug(f"  Mapped {tag:<30} ← {node_id}")
+       node = client.get_node(node_id)
+       nodes[tag] = node
+       _node_id_to_tag[node.nodeid.to_string()] = tag
+       log.debug(f"  Mapped {tag:<30} ← {node_id}")
 
     log.info(f"Successfully resolved {len(nodes)} nodes.")
     return nodes
@@ -171,7 +175,7 @@ async def _read_all(nodes: dict[str, Node]):
             state[tag] = val
             log.info(f"  Initial read  {tag:<30} = {val}")
         except Exception as exc:
-            log.warning(f"  Could not read {tag}: {exc}")
+            log.warning(f"  Could not read {tag} of node {node}: {exc}")
 
 
 # ── Main connection loop 
@@ -193,6 +197,10 @@ async def run():
                 log.info("Connected to S7-1200 OPC-UA server")
                 state["_connected"] = True
 
+                interface_node = client.get_node("ns=4;i=1")
+                refs = await interface_node.get_references()
+                for r in refs:
+                    print(r.BrowseName, r.NodeId.to_string(), r.ReferenceTypeId)
                 # Resolve namespace and node IDs
                 nodes = await _resolve_nodes(client)
 

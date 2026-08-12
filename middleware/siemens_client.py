@@ -29,7 +29,7 @@ import logging
 from datetime import datetime
 from asyncua import Client, Node, client
 from asyncua.common.subscription import DataChangeNotif
-
+from asyncua import ua
 # Configurations 
 
 PLC_IP          = "192.168.50.10"
@@ -179,29 +179,49 @@ async def write_node(tag:str, value) -> bool:
     if not state.get('_connected') or _active_client is None:
         log.warning(f"Cannot write {tag}. Not connected to PLC.")
         return False
-    
+
     node_id = NODE_DEFS.get(tag)
     if node_id is None:
         log.warning(f"Cannot write {tag}. Unknown tag")
         return False
-    
+
     try:
         node = _active_client.get_node(node_id)
-        await node.write_value(value)
+        dv = ua.DataValue(ua.Variant(value), SourceTimestamp = None, ServerTimestamp = None)
+
+        await node.write_value(dv)
         log.info(f"  Wrote command: {tag:<30} = {value}")
         return True
     except Exception as exc:
         log.error(f"Write failed [{tag}]; {exc}")
         return False
-    
+
+async def benchmark_read(tag: str):
+    """
+    Fresh OPC-UA read using the existing Siemens connection.
+    Does not modify state or subscription operation.
+    """
+
+    global _active_client
+
+    if _active_client is None:
+        raise RuntimeError("Siemens OPC-UA client is not connected")
+
+    node_id = NODE_DEFS.get(tag)
+
+    if node_id is None:
+        raise ValueError(f"Unknown Siemens tag: {tag}")
+
+    node = _active_client.get_node(node_id)
+
+    return await node.read_value()
 # Main connection loop 
 
 async def run():
     """
     Connects to S7-1200 OPC-UA server, subscribes to all turntable tags,
     and maintains the connection indefinitely with auto-reconnect.
-
-    Call this as an asyncio task from main.py:
+   Call this as an asyncio task from main.py:
         asyncio.create_task(siemens_client.run())
     """
     handler = TurntableHandler()

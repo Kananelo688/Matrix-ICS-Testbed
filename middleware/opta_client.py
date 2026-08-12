@@ -184,16 +184,16 @@ async def _poll(client: AsyncModbusTcpClient):
 
 async def write_coil(address: int, value: bool) -> bool:
     """
-    Write a single coil on the Opta.
-    Used by main.py to relay the handoff signal from the Allen-Bradley
-    when a workpiece has been deposited on the belt.
+        Write a single coil on the Opta.
+        Used by main.py to relay the handoff signal from the Allen-Bradley
+        when a workpiece has been deposited on the belt.
 
-    Args:
-        address : Modbus coil address (0-based, matches COIL_MAP keys)
-        value   : True = ON, False = OFF
+        Args:
+            address : Modbus coil address (0-based, matches COIL_MAP keys)
+            value   : True = ON, False = OFF
 
-    Returns:
-        True if write succeeded, False otherwise.
+        Returns:
+            True if write succeeded, False otherwise.
     """
     if _client is None or not _client.connected:
         log.error("write_coil called but Opta is not connected")
@@ -239,6 +239,25 @@ async def write_register(address: int, value: int) -> bool:
         log.error(f"write_register exception: {exc}")
         return False
 
+async def benchmark_read_coil(address=0):
+    """
+    Fresh Modbus TCP coil read using the existing connection.
+    """
+
+    if _client is None:
+        raise RuntimeError("Opta Modbus client is not initialized")
+
+    if not _client.connected:
+        raise RuntimeError("Opta Modbus client is not connected")
+
+    result = await _client.read_coils(address=address,count=1,slave=UNIT_ID)
+
+    if result.isError():
+        raise RuntimeError(
+            f"Opta Modbus read failed: {result}"
+        )
+
+    return bool(result.bits[0])
 
 # Main connection loop
 

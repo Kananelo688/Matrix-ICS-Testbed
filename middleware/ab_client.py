@@ -218,6 +218,44 @@ async def write_coil(address: int, value: bool) -> bool:
         return False
 
 
+#async def benchmark_read_coil(address: int = 0):
+  #  """
+   # Perform one fresh Modbus TCP coil read from the Micro820
+    #using the existing persistent connection.
+#
+ #   Benchmark-only function.
+  #  Does not modify state[].
+   # """
+
+ #   if _client is None or not _client.connected:
+  #      raise RuntimeError("Allen-Bradley PLC is not connected")
+
+   # result = await _client.read_coils(address=address,count=1,slave=UNIT_ID)
+
+    #if result.isError():
+     #   raise RuntimeError(f"AB Modbus read error: {result}")
+#
+ #   return bool(result.bits[0])
+
+
+async def benchmark_read_coil(address=0):
+    """
+    Fresh Modbus TCP coil read using the existing connection.
+    """
+
+    if _client is None:
+        raise RuntimeError("AB Modbus client is not initialized")
+
+    if not _client.connected:
+        raise RuntimeError("AB Modbus client is not connected")
+
+    result = await _client.read_coils(address=address,count=1,slave=UNIT_ID)
+
+    if result.isError():
+        raise RuntimeError(f"AB Modbus read failed: {result}")
+
+    return bool(result.bits[0])
+
 # Main connection loop
 
 async def run():

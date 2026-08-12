@@ -227,9 +227,30 @@ def _coerce(tag: str, raw):
 
 COMMAND_TAGS = {"siemensStartCommand", "siemensStopCommand"}
 _last_command_seen = {tag: False for tag in COMMAND_TAGS}
+_last_command_time = {tag:0.0 for tag in COMMAND_TAGS}
+DEBOUNCE_SEC = 0.3
+# ============================================================
+# E2E BENCHMARK INTERFACE
+# ============================================================
 
+BENCHMARK_NODES = {
+    "siemens_request": None,
+    "siemens_response": None,
 
-async def _handle_command_write(nodes:dict):
+    "ab_request": None,
+    "ab_response": None,
+
+    "opta_request": None,
+    "opta_response": None,
+}
+
+BENCHMARK_STATE = {
+    "siemens_last_request": 0,
+    "ab_last_request": 0,
+    "opta_last_request": 0,
+}
+
+async def _handle_command_writes(nodes:dict):
     """
         Polls the writable command nodes fro a vlaue change coming from the OPC-UA client (Ignition/HMI) and forwards it to the PLC via
         siemens-client.write_command(). This runs before normal state async so that async does not immediately overwrite the fresh HMI write.
@@ -243,12 +264,200 @@ async def _handle_command_write(nodes:dict):
         except Exception as exc:
             log.warning(f"Read command failed[{tag}]: {exc}")
             continue
-        
+
         if current != _last_command_seen[tag]:
+            now_t = asyncio.get_event_loop().time()
+            if now_t - _last_command_time[tag] < DEBOUNCE_SEC:
+               continue
             _last_command_seen[tag] = current
+            _last_command_time[tag] = now_t
             log.warning(f"  HMI writing {tag:<20} = {current}")
             await siemens_client.write_node(tag, current)
-    
+
+
+async def _build_benchmark_nodes(matrix_node, ns: int):
+    """
+    Creates a completely separate OPC-UA benchmark interface.
+
+    These nodes are NOT part of the normal MATRIX process image.
+    They are used only by the latency benchmark script.
+    """
+
+    benchmark = await matrix_node.add_object(ns,"Benchmark")
+
+    # Siemens
+    siemens_request = await benchmark.add_variable(ns,"Siemens_Request",0,ua.VariantType.Int64)
+
+    siemens_response = await benchmark.add_variable(
+        ns,
+        "Siemens_Response",
+        0,
+        ua.VariantType.Int64
+    )
+
+    # Allen-Bradley
+    ab_request = await benchmark.add_variable(
+        ns,
+        "AB_Request",
+        0,
+        ua.VariantType.Int64
+    )
+
+    ab_response = await benchmark.add_variable(
+        ns,
+        "AB_Response",
+        0,
+        ua.VariantType.Int64
+    )
+
+    # Arduino Opta
+    opta_request = await benchmark.add_variable(
+        ns,
+        "Opta_Request",
+        0,
+        ua.VariantType.Int64
+    )
+
+    opta_response = await benchmark.add_variable(
+        ns,
+        "Opta_Response",
+        0,
+        ua.VariantType.Int64
+    )
+
+    # Allow benchmark PC to write request counters.
+    await siemens_request.set_writable()
+    await ab_request.set_writable()
+    await opta_request.set_writable()
+
+    BENCHMARK_NODES["siemens_request"] = siemens_request
+    BENCHMARK_NODES["siemens_response"] = siemens_response
+
+    BENCHMARK_NODES["ab_request"] = ab_request
+    BENCHMARK_NODES["ab_response"] = ab_response
+
+    BENCHMARK_NODES["opta_request"] = opta_request
+    BENCHMARK_NODES["opta_response"] = opta_response
+
+    log.info("Benchmark OPC-UA interface created.")
+
+    return benchmark
+
+
+async def _benchmark_loop():
+    """
+    Processes benchmark requests independently of the normal
+    MATRIX state/update loop.
+
+    Request:
+        SCADA benchmark PC -> Middleware
+
+    Processing:
+        Middleware -> PLC -> Middleware
+
+    Response:
+        Middleware -> SCADA benchmark PC
+    """
+
+    while True:
+
+        # ====================================================
+        # Siemens
+        # ====================================================
+
+        try:
+
+            node = BENCHMARK_NODES["siemens_request"]
+
+            request = await node.read_value()
+
+            if request != BENCHMARK_STATE["siemens_last_request"]:
+
+                BENCHMARK_STATE["siemens_last_request"] = request
+
+                # Fresh PLC read
+                await siemens_client.benchmark_read(
+                    "motorTurntable"
+                )
+
+                # Acknowledge request
+                await BENCHMARK_NODES[
+                    "siemens_response"
+                ].write_value(request)
+
+        except Exception as exc:
+
+            log.warning(
+                f"Siemens benchmark request failed: {exc}"
+            )
+
+
+        # ====================================================
+        # Allen-Bradley
+        # ====================================================
+
+        try:
+
+            node = BENCHMARK_NODES["ab_request"]
+
+            request = await node.read_value()
+
+            if request != BENCHMARK_STATE["ab_last_request"]:
+
+                BENCHMARK_STATE["ab_last_request"] = request
+
+                # Fresh PLC coil read
+                await ab_client.benchmark_read_coil(
+                    address=0
+                )
+
+                # Acknowledge
+                await BENCHMARK_NODES[
+                    "ab_response"
+                ].write_value(request)
+
+        except Exception as exc:
+
+            log.warning(
+                f"AB benchmark request failed: {exc}"
+            )
+
+
+        # ====================================================
+        # Arduino Opta
+        # ====================================================
+
+        try:
+
+            node = BENCHMARK_NODES["opta_request"]
+
+            request = await node.read_value()
+
+            if request != BENCHMARK_STATE["opta_last_request"]:
+
+                BENCHMARK_STATE["opta_last_request"] = request
+
+                # Fresh PLC coil read
+                await opta_client.benchmark_read_coil(
+                    address=0
+                )
+
+                # Acknowledge
+                await BENCHMARK_NODES[
+                    "opta_response"
+                ].write_value(request)
+
+        except Exception as exc:
+
+            log.warning(
+                f"Opta benchmark request failed: {exc}"
+            )
+
+
+        # Small polling interval.
+        # This is ONLY the benchmark request detector.
+        await asyncio.sleep(0.001)
+
 async def _update_loop(nodes: dict, start_time: datetime):
     source_map = _build_source_map()
     log.info(f"Update loop running — {UPDATE_INTERVAL}s interval")
@@ -260,7 +469,7 @@ async def _update_loop(nodes: dict, start_time: datetime):
 
             await nodes["middleware_uptime"].write_value(uptime)
             await nodes["last_update"].write_value(now.isoformat())
-
+            await _handle_command_writes(nodes)
             for tag, node in nodes.items():
                 if tag in ("middleware_uptime", "last_update"):
                     continue
@@ -298,7 +507,15 @@ async def run():
     async with server:
         log.info(f"OPC-UA server listening at {SERVER_ENDPOINT}")
         log.info("Connect Ignition OPC-UA driver to this endpoint.")
-        await _update_loop(nodes, start_time)
+        update_task = asyncio.create_task(_update_loop(nodes, start_time)) #TO DO: comment from here
+        benchmark_task = asyncio.create_task(_benchmark_loop())
+        try:
+           await asyncio.gather(update_task,benchmark_task)
+
+        finally:
+           update_task.cancel()
+           benchmark_task.cancel() #TO DO: Comment upto here
+	#await _update_loop(nodes, start_time) #TO DO: Uncomment this line
 
 
 if __name__ == "__main__":

@@ -43,6 +43,9 @@ SECURITY_POLICY = "None_"
 RECONNECT_DELAY = 5   # seconds between reconnection attempts
 POLL_INTERVAL   = 0.5 # seconds — subscription publishing interval
 
+LIVENESS_INTERVAL = 1 #seconds between reconnection attempts
+LIVENESS_TIMEOUT = 0.5 #seconds between subscription publishing interval
+
 # Namespace URI — TIA Portal OPC-UA server uses this URI by default.
 # Confirm via UaExpert browser or Wireshark after enabling OPC-UA on PLC.
 # Common TIA Portal pattern:
@@ -73,10 +76,10 @@ NODE_DEFS = {
     "sliderMagazine": "ns=4;i=12",
     "weldingPart": "ns=4;i=13",
     "drillPart": "ns=4;i=14",
-    "startCommand": "ns=4;i=18",
-    "stopCommand": "ns=4;i=19",
-    "resetCommand": "ns=4;i=20",
-    "completed_pieces": "ns=4;i=24",
+    "siemensStartCommand": "ns=4;i=18",
+    "siemensStopCommand": "ns=4;i=19",
+    "siemensResetCommand": "ns=4;i=20",
+    "workpiecesCount": "ns=4;i=24",
     "peerCommunicationOK": "ns=4;i=25",
     "controllerActive": "ns=4;i=26",
 }
@@ -97,15 +100,6 @@ state["_connected"] = False
 state["_last_update"] = None
 
 # Subscription handler
-async def browse_recursive(node, indent=0):
-    children = await node.get_children()
-    for child in children:
-        name = (await child.read_browse_name()).Name
-        if name == "Server":
-            continue  # skip built-in diagnostics tree
-        nid = child.nodeid.to_string()
-        print("  " * indent + f"{name}: {nid}")
-        await browse_recursive(child, indent + 1)
 
 class TurntableHandler:
     """
@@ -132,6 +126,7 @@ class TurntableHandler:
 # Maps resolved NodeId string → tag name (populated at runtime)
 _node_id_to_tag: dict = {}
 
+_active_client: Client | None = None
 
 # async def _resolve_nodes(client: Client) -> dict[str, Node]:
 # #     """
@@ -177,8 +172,29 @@ async def _read_all(nodes: dict[str, Node]):
         except Exception as exc:
             log.warning(f"  Could not read {tag} of node {node}: {exc}")
 
-
-# ── Main connection loop 
+async def write_node(tag:str, value) -> bool:
+    """
+        Writes a single tag value to the PLC (Use for HMI-issued commands).
+    """
+    if not state.get('_connected') or _active_client is None:
+        log.warning(f"Cannot write {tag}. Not connected to PLC.")
+        return False
+    
+    node_id = NODE_DEFS.get(tag)
+    if node_id is None:
+        log.warning(f"Cannot write {tag}. Unknown tag")
+        return False
+    
+    try:
+        node = _active_client.get_node(node_id)
+        await node.write_value(value)
+        log.info(f"  Wrote command: {tag:<30} = {value}")
+        return True
+    except Exception as exc:
+        log.error(f"Write failed [{tag}]; {exc}")
+        return False
+    
+# Main connection loop 
 
 async def run():
     """
@@ -196,18 +212,16 @@ async def run():
             async with Client(url=OPC_URL) as client:
                 log.info("Connected to S7-1200 OPC-UA server")
                 state["_connected"] = True
+                global _active_client
+                _active_client = client
 
-                interface_node = client.get_node("ns=4;i=1")
-                refs = await interface_node.get_references()
-                for r in refs:
-                    print(r.BrowseName, r.NodeId.to_string(), r.ReferenceTypeId)
                 # Resolve namespace and node IDs
                 nodes = await _resolve_nodes(client)
 
                 # Read initial values before subscription fires
                 await _read_all(nodes)
 
-                # Subscribe — server pushes updates on value change
+                # Subscribe server pushes updates on value change
                 subscription = await client.create_subscription(
                     period=int(POLL_INTERVAL * 1000),  # ms
                     handler=handler
@@ -215,9 +229,17 @@ async def run():
                 await subscription.subscribe_data_change(list(nodes.values()))
                 log.info(f"Subscribed to {len(nodes)} turntable tags")
 
-                # Keep alive — asyncua subscription runs in background
+                # Keep alive asyncua subscription runs in background
+                probe_node = next(iter(nodes.values()))
                 while True:
-                    await asyncio.sleep(1)
+                    try:
+                       await asyncio.wait_for(probe_node.read_value(), timeout = LIVENESS_TIMEOUT)
+                       state["_connected"] = True
+                    except (Exception, asyncio.TimeoutError) as exc:
+                       state['_connected'] = False
+                       log.warning(f"Liveness check failed: {exc}")
+                       raise
+                    await asyncio.sleep(LIVENESS_INTERVAL)
 
         except Exception as exc:
             state["_connected"] = False

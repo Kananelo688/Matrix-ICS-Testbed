@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 main.py
 MATRIX Testbed — Raspberry Pi Middleware Entry Point

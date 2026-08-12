@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 opta_client.py
 
@@ -43,7 +44,7 @@ UNIT_ID         = 255   # PLC IDE default unit identifier — do not change
 
 POLL_INTERVAL   = 0.5   # seconds between polling cycles
 RECONNECT_DELAY = 5     # seconds between reconnection attempts
-
+POLL_TIMEOUT = 1.0      #Seconds for which the polling of register and data should be done.
 # Modbus address maps
 # Addresses are 0-based (pymodbus convention).
 # PLC IDE variable declaration order determines coil/input addresses.
@@ -112,14 +113,13 @@ async def _poll(client: AsyncModbusTcpClient):
     FramerType.SOCKET framer (default) suppresses the strict check.
     """
     changed = False
-
+    state["_connected"] = True
     # Read output coils (actuator states + handoff flags)
     if COIL_MAP:
         n_coils = max(COIL_MAP.keys()) + 1
         try:
-            result = await client.read_coils(
-                address=0, count=n_coils, slave=UNIT_ID
-            )
+            result = await asyncio.wait_for(client.read_coils(
+                address=0, count=n_coils, slave=UNIT_ID),timeout = POLL_TIMEOUT)
             if result.isError():
                 log.warning(f"Coil read error: {result}")
             else:
@@ -131,14 +131,16 @@ async def _poll(client: AsyncModbusTcpClient):
                         changed = True
         except ModbusException as exc:
             log.warning(f"Coil read exception: {exc}")
+            if "not connected" in str(exc).lower():
+               state["_connected"] = False
 
     # Read discrete inputs (physical sensor states)
     if INPUT_MAP:
         n_inputs = max(INPUT_MAP.keys()) + 1
         try:
-            result = await client.read_discrete_inputs(
+            result = await asyncio.wait_for(client.read_discrete_inputs(
                 address=0, count=n_inputs, slave=UNIT_ID
-            )
+            ), timeout = POLL_TIMEOUT)
             if result.isError():
                 log.warning(f"Discrete input read error: {result}")
             else:
@@ -150,6 +152,8 @@ async def _poll(client: AsyncModbusTcpClient):
                         changed = True
         except ModbusException as exc:
             log.warning(f"Discrete input exception: {exc}")
+            if "not connected" in str(exc).lower():
+               state["_connected"] = False
 
     # Read holding registers (workpiece counter)
     if REGISTER_MAP:
@@ -169,6 +173,8 @@ async def _poll(client: AsyncModbusTcpClient):
                         changed = True
         except ModbusException as exc:
             log.warning(f"Register read exception: {exc}")
+            if "not connected" in str(exc).lower():
+                state["_connected"] = False
 
     if changed:
         state["_last_update"] = datetime.now().isoformat()

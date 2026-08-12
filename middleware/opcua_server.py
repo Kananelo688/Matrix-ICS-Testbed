@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 opcua_server.py
 
@@ -31,7 +32,7 @@ except ImportError:
 
 # Configuration 
 
-SERVER_ENDPOINT = "opc.tcp://192.168.50.1:4840"
+SERVER_ENDPOINT = "opc.tcp://192.168.100.10:4840"
 NAMESPACE_URI   = "urn:MATRIX.Middleware.OPC-UA"
 SERVER_NAME     = "MATRIX ICS Testbed — Middleware OPC-UA Server"
 UPDATE_INTERVAL = 0.5  # seconds
@@ -46,7 +47,7 @@ log = logging.getLogger("OPC_UA_SERVER")
 logging.getLogger("asyncua").setLevel(logging.WARNING)
 logging.getLogger("asyncua.server.address_space").setLevel(logging.WARNING)
 logging.getLogger("asyncua.server.node_management").setLevel(logging.WARNING)
-# ── Mock states for standalone mode ──────────────────────────────────────────
+# Mock states for standalone mode 
 
 if _STANDALONE:
     log.warning("Standalone mode — using mock state dicts")
@@ -56,7 +57,7 @@ if _STANDALONE:
 
     siemens_client = _M()
     siemens_client.state = {
-        "turntableInPosition": False, "magazineEmpty": False,
+        "inPosition": False, "magazineEmpty": False,
         "motorTurntable": False, "drillActive": False, "weldActive": False,
         "magazinePart": False, "transferPart": False, "sliderMagazine": False,
         "weldingPart": False, "drillPart": False,
@@ -84,7 +85,7 @@ if _STANDALONE:
         "_connected": False,
     }
 
-#  Node definitions 
+#  Node definitions
 # (state_key, display_name, VariantType, writable, description)
 
 SYSTEM_NODES = [
@@ -97,28 +98,28 @@ SYSTEM_NODES = [
 
 TURNTABLE_NODES = [
     # Process image inputs
-    ("turntableInPosition",         "Turntable In Position",          ua.VariantType.Boolean, False, "S4 — rotary table aligned with stations"),
+    ("inPosition",         	    "Turntable In Position",          ua.VariantType.Boolean, False, "S4 — rotary table aligned with stations"),
     ("magazineEmpty",               "Magazine Empty",                 ua.VariantType.Boolean, False, "B4 — True = no workpiece in magazine"),
-    ("motorTurntable",              "Motor Turntable",                ua.VariantType.Boolean, False, "Q4 — turntable rotation motor active"),
-    ("drillActive",                 "Drill Active",                   ua.VariantType.Boolean, False, "Q9 — drilling station motor (3s)"),
-    ("weldActive",                  "Weld Active",                    ua.VariantType.Boolean, False, "Q10 — welding station lamp (5s)"),
-    
+    ("motorTurntable",              "Motor Turntable",                ua.VariantType.Boolean, True,  "Q4 — turntable rotation motor active"),
+    ("drillActive",                 "Drill Active",                   ua.VariantType.Boolean, True, "Q9 — drilling station motor (3s)"),
+    ("weldActive",                  "Weld Active",                    ua.VariantType.Boolean, True, "Q10 — welding station lamp (5s)"),
+
     # Workpiece management DB flags
     ("magazinePart",                "Magazine Part",                  ua.VariantType.Boolean, False, "DB — nest 1 (magazine) occupied"),
     ("transferPart",                "Transfer Part Ready",            ua.VariantType.Boolean, False, "DB — nest 4 finished workpiece ready for pickup"),
-    ("sliderMagazine",              "Slider Magazine",                ua.VariantType.Boolean, False, "Q7 — magazine slider valve active"),
+    ("sliderMagazine",              "Slider Magazine",                ua.VariantType.Boolean, True, "Q7 — magazine slider valve active"),
     ("weldingPart",                 "Welding Part",                   ua.VariantType.Boolean, False, "DB — nest 3 has workpiece"),
     ("drillPart",                   "Drill Part",                     ua.VariantType.Boolean, False, "DB — nest 2 has workpiece"),
-    
+
     # Commands (writable from Ignition)
-    ("siemensStart",                "Siemens Start Command",          ua.VariantType.Boolean, True,  "Start command — write True from HMI to start cycle"),
-    ("siemensStop",                 "Siemens Stop Command",           ua.VariantType.Boolean, True,  "Stop command — write True from HMI to stop"),
-    ("siemensReset",                "Siemens Reset Command",          ua.VariantType.Boolean, True,  "Reset command — write True from HMI to reset faults"),
-   
+    ("siemensStartCommand",                "Siemens Start Command",          ua.VariantType.Boolean, True,  "Start command — write True from HMI to start cycle"),
+    ("siemensStopCommand",                 "Siemens Stop Command",           ua.VariantType.Boolean, True,  "Stop command — write True from HMI to stop"),
+    ("siemensResetCommand",                "Siemens Reset Command",          ua.VariantType.Boolean, True,  "Reset command — write True from HMI to reset faults"),
+
     # Diagnostics
-    ("siemensCycleCount",           "Siemens Cycle Count",            ua.VariantType.Int16,   False, "Total completed turntable cycles"),
-    ("siemensPeerCommunicationOk",  "Siemens Peer Comm OK",           ua.VariantType.Boolean, False, "Level 1 Modbus TCP peer link healthy"),
-    ("siemensHealthy",              "Siemens Healthy",                ua.VariantType.Boolean, False, "Controller self-diagnostic flag"),
+    ("workpiecesCount",           "Completed Workpieces Count",      ua.VariantType.Int16,   False, "Total Number of Workpieces completed."),
+    ("siemensPeerCommunicationOk",  "Siemens PeerComm OK",           ua.VariantType.Boolean, False, "Level 1 Modbus TCP peer link healthy."),
+    ("controllerActive",              "Siemens Active",                 ua.VariantType.Boolean, False, "Seimens in-control Indicator."),
 ]
 
 TRANSFER_UNIT_NODES = [
@@ -224,6 +225,30 @@ def _coerce(tag: str, raw):
 
 # Update loop
 
+COMMAND_TAGS = {"siemensStartCommand", "siemensStopCommand"}
+_last_command_seen = {tag: False for tag in COMMAND_TAGS}
+
+
+async def _handle_command_write(nodes:dict):
+    """
+        Polls the writable command nodes fro a vlaue change coming from the OPC-UA client (Ignition/HMI) and forwards it to the PLC via
+        siemens-client.write_command(). This runs before normal state async so that async does not immediately overwrite the fresh HMI write.
+    """
+    for tag in COMMAND_TAGS:
+        node = nodes.get(tag)
+        if node is None:
+            continue
+        try:
+            current = await node.read_value()
+        except Exception as exc:
+            log.warning(f"Read command failed[{tag}]: {exc}")
+            continue
+        
+        if current != _last_command_seen[tag]:
+            _last_command_seen[tag] = current
+            log.warning(f"  HMI writing {tag:<20} = {current}")
+            await siemens_client.write_node(tag, current)
+    
 async def _update_loop(nodes: dict, start_time: datetime):
     source_map = _build_source_map()
     log.info(f"Update loop running — {UPDATE_INTERVAL}s interval")

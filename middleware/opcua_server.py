@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 opcua_server.py
 
@@ -31,7 +32,7 @@ except ImportError:
 
 # Configuration 
 
-SERVER_ENDPOINT = "opc.tcp://192.168.50.1:4840"
+SERVER_ENDPOINT = "opc.tcp://192.168.100.10:4840"
 NAMESPACE_URI   = "urn:MATRIX.Middleware.OPC-UA"
 SERVER_NAME     = "MATRIX ICS Testbed — Middleware OPC-UA Server"
 UPDATE_INTERVAL = 0.5  # seconds
@@ -46,7 +47,7 @@ log = logging.getLogger("OPC_UA_SERVER")
 logging.getLogger("asyncua").setLevel(logging.WARNING)
 logging.getLogger("asyncua.server.address_space").setLevel(logging.WARNING)
 logging.getLogger("asyncua.server.node_management").setLevel(logging.WARNING)
-# ── Mock states for standalone mode ──────────────────────────────────────────
+# Mock states for standalone mode 
 
 if _STANDALONE:
     log.warning("Standalone mode — using mock state dicts")
@@ -56,7 +57,7 @@ if _STANDALONE:
 
     siemens_client = _M()
     siemens_client.state = {
-        "turntableInPosition": False, "magazineEmpty": False,
+        "inPosition": False, "magazineEmpty": False,
         "motorTurntable": False, "drillActive": False, "weldActive": False,
         "magazinePart": False, "transferPart": False, "sliderMagazine": False,
         "weldingPart": False, "drillPart": False,
@@ -84,7 +85,7 @@ if _STANDALONE:
         "_connected": False,
     }
 
-#  Node definitions 
+#  Node definitions
 # (state_key, display_name, VariantType, writable, description)
 
 SYSTEM_NODES = [
@@ -97,28 +98,28 @@ SYSTEM_NODES = [
 
 TURNTABLE_NODES = [
     # Process image inputs
-    ("turntableInPosition",         "Turntable In Position",          ua.VariantType.Boolean, False, "S4 — rotary table aligned with stations"),
+    ("inPosition",         	    "Turntable In Position",          ua.VariantType.Boolean, False, "S4 — rotary table aligned with stations"),
     ("magazineEmpty",               "Magazine Empty",                 ua.VariantType.Boolean, False, "B4 — True = no workpiece in magazine"),
-    ("motorTurntable",              "Motor Turntable",                ua.VariantType.Boolean, False, "Q4 — turntable rotation motor active"),
-    ("drillActive",                 "Drill Active",                   ua.VariantType.Boolean, False, "Q9 — drilling station motor (3s)"),
-    ("weldActive",                  "Weld Active",                    ua.VariantType.Boolean, False, "Q10 — welding station lamp (5s)"),
-    
+    ("motorTurntable",              "Motor Turntable",                ua.VariantType.Boolean, True,  "Q4 — turntable rotation motor active"),
+    ("drillActive",                 "Drill Active",                   ua.VariantType.Boolean, True, "Q9 — drilling station motor (3s)"),
+    ("weldActive",                  "Weld Active",                    ua.VariantType.Boolean, True, "Q10 — welding station lamp (5s)"),
+
     # Workpiece management DB flags
     ("magazinePart",                "Magazine Part",                  ua.VariantType.Boolean, False, "DB — nest 1 (magazine) occupied"),
     ("transferPart",                "Transfer Part Ready",            ua.VariantType.Boolean, False, "DB — nest 4 finished workpiece ready for pickup"),
-    ("sliderMagazine",              "Slider Magazine",                ua.VariantType.Boolean, False, "Q7 — magazine slider valve active"),
+    ("sliderMagazine",              "Slider Magazine",                ua.VariantType.Boolean, True, "Q7 — magazine slider valve active"),
     ("weldingPart",                 "Welding Part",                   ua.VariantType.Boolean, False, "DB — nest 3 has workpiece"),
     ("drillPart",                   "Drill Part",                     ua.VariantType.Boolean, False, "DB — nest 2 has workpiece"),
-    
+
     # Commands (writable from Ignition)
-    ("siemensStart",                "Siemens Start Command",          ua.VariantType.Boolean, True,  "Start command — write True from HMI to start cycle"),
-    ("siemensStop",                 "Siemens Stop Command",           ua.VariantType.Boolean, True,  "Stop command — write True from HMI to stop"),
-    ("siemensReset",                "Siemens Reset Command",          ua.VariantType.Boolean, True,  "Reset command — write True from HMI to reset faults"),
-   
+    ("siemensStartCommand",                "Siemens Start Command",          ua.VariantType.Boolean, True,  "Start command — write True from HMI to start cycle"),
+    ("siemensStopCommand",                 "Siemens Stop Command",           ua.VariantType.Boolean, True,  "Stop command — write True from HMI to stop"),
+    ("siemensResetCommand",                "Siemens Reset Command",          ua.VariantType.Boolean, True,  "Reset command — write True from HMI to reset faults"),
+
     # Diagnostics
-    ("siemensCycleCount",           "Siemens Cycle Count",            ua.VariantType.Int16,   False, "Total completed turntable cycles"),
-    ("siemensPeerCommunicationOk",  "Siemens Peer Comm OK",           ua.VariantType.Boolean, False, "Level 1 Modbus TCP peer link healthy"),
-    ("siemensHealthy",              "Siemens Healthy",                ua.VariantType.Boolean, False, "Controller self-diagnostic flag"),
+    ("workpiecesCount",           "Completed Workpieces Count",      ua.VariantType.Int16,   False, "Total Number of Workpieces completed."),
+    ("siemensPeerCommunicationOk",  "Siemens PeerComm OK",           ua.VariantType.Boolean, False, "Level 1 Modbus TCP peer link healthy."),
+    ("controllerActive",              "Siemens Active",                 ua.VariantType.Boolean, False, "Seimens in-control Indicator."),
 ]
 
 TRANSFER_UNIT_NODES = [
@@ -224,6 +225,239 @@ def _coerce(tag: str, raw):
 
 # Update loop
 
+COMMAND_TAGS = {"siemensStartCommand", "siemensStopCommand"}
+_last_command_seen = {tag: False for tag in COMMAND_TAGS}
+_last_command_time = {tag:0.0 for tag in COMMAND_TAGS}
+DEBOUNCE_SEC = 0.3
+# ============================================================
+# E2E BENCHMARK INTERFACE
+# ============================================================
+
+BENCHMARK_NODES = {
+    "siemens_request": None,
+    "siemens_response": None,
+
+    "ab_request": None,
+    "ab_response": None,
+
+    "opta_request": None,
+    "opta_response": None,
+}
+
+BENCHMARK_STATE = {
+    "siemens_last_request": 0,
+    "ab_last_request": 0,
+    "opta_last_request": 0,
+}
+
+async def _handle_command_writes(nodes:dict):
+    """
+        Polls the writable command nodes fro a vlaue change coming from the OPC-UA client (Ignition/HMI) and forwards it to the PLC via
+        siemens-client.write_command(). This runs before normal state async so that async does not immediately overwrite the fresh HMI write.
+    """
+    for tag in COMMAND_TAGS:
+        node = nodes.get(tag)
+        if node is None:
+            continue
+        try:
+            current = await node.read_value()
+        except Exception as exc:
+            log.warning(f"Read command failed[{tag}]: {exc}")
+            continue
+
+        if current != _last_command_seen[tag]:
+            now_t = asyncio.get_event_loop().time()
+            if now_t - _last_command_time[tag] < DEBOUNCE_SEC:
+               continue
+            _last_command_seen[tag] = current
+            _last_command_time[tag] = now_t
+            log.warning(f"  HMI writing {tag:<20} = {current}")
+            await siemens_client.write_node(tag, current)
+
+
+async def _build_benchmark_nodes(matrix_node, ns: int):
+    """
+    Creates a completely separate OPC-UA benchmark interface.
+
+    These nodes are NOT part of the normal MATRIX process image.
+    They are used only by the latency benchmark script.
+    """
+
+    benchmark = await matrix_node.add_object(ns,"Benchmark")
+
+    # Siemens
+    siemens_request = await benchmark.add_variable(ns,"Siemens_Request",0,ua.VariantType.Int64)
+
+    siemens_response = await benchmark.add_variable(
+        ns,
+        "Siemens_Response",
+        0,
+        ua.VariantType.Int64
+    )
+
+    # Allen-Bradley
+    ab_request = await benchmark.add_variable(
+        ns,
+        "AB_Request",
+        0,
+        ua.VariantType.Int64
+    )
+
+    ab_response = await benchmark.add_variable(
+        ns,
+        "AB_Response",
+        0,
+        ua.VariantType.Int64
+    )
+
+    # Arduino Opta
+    opta_request = await benchmark.add_variable(
+        ns,
+        "Opta_Request",
+        0,
+        ua.VariantType.Int64
+    )
+
+    opta_response = await benchmark.add_variable(
+        ns,
+        "Opta_Response",
+        0,
+        ua.VariantType.Int64
+    )
+
+    # Allow benchmark PC to write request counters.
+    await siemens_request.set_writable()
+    await ab_request.set_writable()
+    await opta_request.set_writable()
+
+    BENCHMARK_NODES["siemens_request"] = siemens_request
+    BENCHMARK_NODES["siemens_response"] = siemens_response
+
+    BENCHMARK_NODES["ab_request"] = ab_request
+    BENCHMARK_NODES["ab_response"] = ab_response
+
+    BENCHMARK_NODES["opta_request"] = opta_request
+    BENCHMARK_NODES["opta_response"] = opta_response
+
+    log.info("Benchmark OPC-UA interface created.")
+
+    return benchmark
+
+
+async def _benchmark_loop():
+    """
+    Processes benchmark requests independently of the normal
+    MATRIX state/update loop.
+
+    Request:
+        SCADA benchmark PC -> Middleware
+
+    Processing:
+        Middleware -> PLC -> Middleware
+
+    Response:
+        Middleware -> SCADA benchmark PC
+    """
+
+    while True:
+
+        # ====================================================
+        # Siemens
+        # ====================================================
+
+        try:
+
+            node = BENCHMARK_NODES["siemens_request"]
+
+            request = await node.read_value()
+
+            if request != BENCHMARK_STATE["siemens_last_request"]:
+
+                BENCHMARK_STATE["siemens_last_request"] = request
+
+                # Fresh PLC read
+                await siemens_client.benchmark_read(
+                    "motorTurntable"
+                )
+
+                # Acknowledge request
+                await BENCHMARK_NODES[
+                    "siemens_response"
+                ].write_value(request)
+
+        except Exception as exc:
+
+            log.warning(
+                f"Siemens benchmark request failed: {exc}"
+            )
+
+
+        # ====================================================
+        # Allen-Bradley
+        # ====================================================
+
+        try:
+
+            node = BENCHMARK_NODES["ab_request"]
+
+            request = await node.read_value()
+
+            if request != BENCHMARK_STATE["ab_last_request"]:
+
+                BENCHMARK_STATE["ab_last_request"] = request
+
+                # Fresh PLC coil read
+                await ab_client.benchmark_read_coil(
+                    address=0
+                )
+
+                # Acknowledge
+                await BENCHMARK_NODES[
+                    "ab_response"
+                ].write_value(request)
+
+        except Exception as exc:
+
+            log.warning(
+                f"AB benchmark request failed: {exc}"
+            )
+
+
+        # ====================================================
+        # Arduino Opta
+        # ====================================================
+
+        try:
+
+            node = BENCHMARK_NODES["opta_request"]
+
+            request = await node.read_value()
+
+            if request != BENCHMARK_STATE["opta_last_request"]:
+
+                BENCHMARK_STATE["opta_last_request"] = request
+
+                # Fresh PLC coil read
+                await opta_client.benchmark_read_coil(
+                    address=0
+                )
+
+                # Acknowledge
+                await BENCHMARK_NODES[
+                    "opta_response"
+                ].write_value(request)
+
+        except Exception as exc:
+
+            log.warning(
+                f"Opta benchmark request failed: {exc}"
+            )
+
+
+        # Small polling interval.
+        # This is ONLY the benchmark request detector.
+        await asyncio.sleep(0.001)
+
 async def _update_loop(nodes: dict, start_time: datetime):
     source_map = _build_source_map()
     log.info(f"Update loop running — {UPDATE_INTERVAL}s interval")
@@ -235,7 +469,7 @@ async def _update_loop(nodes: dict, start_time: datetime):
 
             await nodes["middleware_uptime"].write_value(uptime)
             await nodes["last_update"].write_value(now.isoformat())
-
+            await _handle_command_writes(nodes)
             for tag, node in nodes.items():
                 if tag in ("middleware_uptime", "last_update"):
                     continue
@@ -273,7 +507,15 @@ async def run():
     async with server:
         log.info(f"OPC-UA server listening at {SERVER_ENDPOINT}")
         log.info("Connect Ignition OPC-UA driver to this endpoint.")
-        await _update_loop(nodes, start_time)
+        update_task = asyncio.create_task(_update_loop(nodes, start_time)) #TO DO: comment from here
+        benchmark_task = asyncio.create_task(_benchmark_loop())
+        try:
+           await asyncio.gather(update_task,benchmark_task)
+
+        finally:
+           update_task.cancel()
+           benchmark_task.cancel() #TO DO: Comment upto here
+	#await _update_loop(nodes, start_time) #TO DO: Uncomment this line
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 siemens_client.py
 
@@ -26,9 +27,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
-from asyncua import Client, Node
+from asyncua import Client, Node, client
 from asyncua.common.subscription import DataChangeNotif
-
+from asyncua import ua
 # Configurations 
 
 PLC_IP          = "192.168.50.10"
@@ -42,12 +43,15 @@ SECURITY_POLICY = "None_"
 RECONNECT_DELAY = 5   # seconds between reconnection attempts
 POLL_INTERVAL   = 0.5 # seconds — subscription publishing interval
 
+LIVENESS_INTERVAL = 1 #seconds between reconnection attempts
+LIVENESS_TIMEOUT = 0.5 #seconds between subscription publishing interval
+
 # Namespace URI — TIA Portal OPC-UA server uses this URI by default.
 # Confirm via UaExpert browser or Wireshark after enabling OPC-UA on PLC.
 # Common TIA Portal pattern:
 #   "urn:SIMATIC.S7-1200.OPC-UA.Application:PLC_1"
 # You may need to browse ns=0;i=2255 (NamespaceArray) to find your index.
-NAMESPACE_URI   = "urn:SIMATIC.S7-1200.OPC-UA.Application:PLC_1"
+NAMESPACE_URI   = "http://ServerInterface"
 
 # Node ID map
 # Format: tag_name → OPC-UA NodeId string
@@ -62,30 +66,25 @@ NAMESPACE_URI   = "urn:SIMATIC.S7-1200.OPC-UA.Application:PLC_1"
 #   ns=<idx>;s="<DBName>"."<VariableName>"
 
 NODE_DEFS = {
-    # ── Process image inputs (Turntable struct)
-    "turntableInPosition":        "ns=4;i=5",
-    "magazineEmpty":              "ns=4;i=6",
-    "motorTurntable":             "ns=4;i=7",
-    "drillActive":                "ns=4;i=8",
-    "weldActive":                 "ns=4;i=9",
-    "magazinePart":               "ns=4;i=10",
-    "transferPart":               "ns=4;i=11",  # transferReady
-    "sliderMagazine":             "ns=4;i=12",
-    "weldingPart":                "ns=4;i=13",
-    "drillPart":                  "ns=4;i=14",
-    
-    # ── Commands struct
-    "siemensStart":               "ns=4;i=18",  # startCommand
-    "siemensStop":                "ns=4;i=19",  # stopCommand
-    "siemensReset":               "ns=4;i=20",  # resetCommand
-    
-    # ── Diagnostics struct
-    "siemensCycleCount":          "ns=4;i=24",  # cycleCount
-    "siemensPeerCommunicationOk": "ns=4;i=25",  # peerCommunicationOK
-    "siemensHealthy":             "ns=4;i=26",  # controllerHealthy
+    "inPosition": "ns=4;i=5",
+    "magazineEmpty": "ns=4;i=6",
+    "motorTurntable": "ns=4;i=7",
+    "drillActive": "ns=4;i=8",
+    "weldActive": "ns=4;i=9",
+    "magazinePart": "ns=4;i=10",
+    "transferPart": "ns=4;i=11",
+    "sliderMagazine": "ns=4;i=12",
+    "weldingPart": "ns=4;i=13",
+    "drillPart": "ns=4;i=14",
+    "siemensStartCommand": "ns=4;i=18",
+    "siemensStopCommand": "ns=4;i=19",
+    "siemensResetCommand": "ns=4;i=20",
+    "workpiecesCount": "ns=4;i=24",
+    "peerCommunicationOK": "ns=4;i=25",
+    "controllerActive": "ns=4;i=26",
 }
 
-# ── Logging
+# Logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,7 +99,7 @@ state: dict = {tag: None for tag in NODE_DEFS}
 state["_connected"] = False
 state["_last_update"] = None
 
-# Subscription handler 
+# Subscription handler
 
 class TurntableHandler:
     """
@@ -127,35 +126,35 @@ class TurntableHandler:
 # Maps resolved NodeId string → tag name (populated at runtime)
 _node_id_to_tag: dict = {}
 
+_active_client: Client | None = None
 
 # async def _resolve_nodes(client: Client) -> dict[str, Node]:
-#     """
-#     Resolves NAMESPACE_URI to its index on this server, then builds
-#     a {tag_name: Node} dict for all entries in NODE_DEFS.
-#     """
-#     ns_idx = await client.get_namespace_index(NAMESPACE_URI)
-#     log.info(f"Namespace '{NAMESPACE_URI}' → index {ns_idx}")
+# #     """
+# #     Resolves NAMESPACE_URI to its index on this server, then builds
+# #     a {tag_name: Node} dict for all entries in NODE_DEFS.
+# #     """
+#      ns_idx = await client.get_namespace_index(NAMESPACE_URI)
+#      log.info(f"Namespace '{NAMESPACE_URI}' → index {ns_idx}")
+#      nodes = {}
+#      for tag, identifier in NODE_DEFS.items():
+#          node_id = f'ns={ns_idx};s={identifier}'
+#          node = client.get_node(node_id)
+#          nodes[tag] = node
+#          _node_id_to_tag[node.nodeid.to_string()] = tag
+#          log.debug(f"  Resolved  {tag:<30} ← {node_id}")
 
-#     nodes = {}
-#     for tag, identifier in NODE_DEFS.items():
-#         node_id = f"ns={ns_idx};s={identifier}"
-#         node = client.get_node(node_id)
-#         nodes[tag] = node
-#         _node_id_to_tag[node.nodeid.to_string()] = tag
-#         log.debug(f"  Resolved  {tag:<30} ← {node_id}")
-
-#     return nodes
+#      return nodes
 
 async def _resolve_nodes(client: Client) -> dict[str, Node]:
     """
-    Fetches Node objects directly using the fully qualified numeric NodeIds.
+        Fetches Node objects directly using the fully qualified numeric NodeIds.
     """
     nodes = {}
     for tag, node_id in NODE_DEFS.items():
-        node = client.get_node(node_id)
-        nodes[tag] = node
-        _node_id_to_tag[node.nodeid.to_string()] = tag
-        log.debug(f"  Mapped {tag:<30} ← {node_id}")
+       node = client.get_node(node_id)
+       nodes[tag] = node
+       _node_id_to_tag[node.nodeid.to_string()] = tag
+       log.debug(f"  Mapped {tag:<30} ← {node_id}")
 
     log.info(f"Successfully resolved {len(nodes)} nodes.")
     return nodes
@@ -171,17 +170,58 @@ async def _read_all(nodes: dict[str, Node]):
             state[tag] = val
             log.info(f"  Initial read  {tag:<30} = {val}")
         except Exception as exc:
-            log.warning(f"  Could not read {tag}: {exc}")
+            log.warning(f"  Could not read {tag} of node {node}: {exc}")
 
+async def write_node(tag:str, value) -> bool:
+    """
+        Writes a single tag value to the PLC (Use for HMI-issued commands).
+    """
+    if not state.get('_connected') or _active_client is None:
+        log.warning(f"Cannot write {tag}. Not connected to PLC.")
+        return False
 
-# ── Main connection loop 
+    node_id = NODE_DEFS.get(tag)
+    if node_id is None:
+        log.warning(f"Cannot write {tag}. Unknown tag")
+        return False
+
+    try:
+        node = _active_client.get_node(node_id)
+        dv = ua.DataValue(ua.Variant(value), SourceTimestamp = None, ServerTimestamp = None)
+
+        await node.write_value(dv)
+        log.info(f"  Wrote command: {tag:<30} = {value}")
+        return True
+    except Exception as exc:
+        log.error(f"Write failed [{tag}]; {exc}")
+        return False
+
+async def benchmark_read(tag: str):
+    """
+    Fresh OPC-UA read using the existing Siemens connection.
+    Does not modify state or subscription operation.
+    """
+
+    global _active_client
+
+    if _active_client is None:
+        raise RuntimeError("Siemens OPC-UA client is not connected")
+
+    node_id = NODE_DEFS.get(tag)
+
+    if node_id is None:
+        raise ValueError(f"Unknown Siemens tag: {tag}")
+
+    node = _active_client.get_node(node_id)
+
+    return await node.read_value()
+# Main connection loop 
 
 async def run():
     """
     Connects to S7-1200 OPC-UA server, subscribes to all turntable tags,
     and maintains the connection indefinitely with auto-reconnect.
-
-    Call this as an asyncio task from main.py:
+   Call this as an asyncio task from main.py:
         asyncio.create_task(siemens_client.run())
     """
     handler = TurntableHandler()
@@ -192,6 +232,8 @@ async def run():
             async with Client(url=OPC_URL) as client:
                 log.info("Connected to S7-1200 OPC-UA server")
                 state["_connected"] = True
+                global _active_client
+                _active_client = client
 
                 # Resolve namespace and node IDs
                 nodes = await _resolve_nodes(client)
@@ -199,7 +241,7 @@ async def run():
                 # Read initial values before subscription fires
                 await _read_all(nodes)
 
-                # Subscribe — server pushes updates on value change
+                # Subscribe server pushes updates on value change
                 subscription = await client.create_subscription(
                     period=int(POLL_INTERVAL * 1000),  # ms
                     handler=handler
@@ -207,9 +249,17 @@ async def run():
                 await subscription.subscribe_data_change(list(nodes.values()))
                 log.info(f"Subscribed to {len(nodes)} turntable tags")
 
-                # Keep alive — asyncua subscription runs in background
+                # Keep alive asyncua subscription runs in background
+                probe_node = next(iter(nodes.values()))
                 while True:
-                    await asyncio.sleep(1)
+                    try:
+                       await asyncio.wait_for(probe_node.read_value(), timeout = LIVENESS_TIMEOUT)
+                       state["_connected"] = True
+                    except (Exception, asyncio.TimeoutError) as exc:
+                       state['_connected'] = False
+                       log.warning(f"Liveness check failed: {exc}")
+                       raise
+                    await asyncio.sleep(LIVENESS_INTERVAL)
 
         except Exception as exc:
             state["_connected"] = False

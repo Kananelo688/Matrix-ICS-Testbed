@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 ab_client.py
 
@@ -37,7 +38,7 @@ UNIT_ID         = 1     # Modbus slave/unit ID — default on Micro820
 
 POLL_INTERVAL   = 0.5   # seconds between polling cycles
 RECONNECT_DELAY = 5     # seconds between reconnection attempts
-
+POLL_TIMEOUT = 1.5 	# second per read, for it to detect link failure.
 # Modbus register map 
 # These addresses must match what you configured in CCW's Modbus mapping panel.
 # CCW address 1 = pymodbus address 0 (subtract 1 from CCW display value).
@@ -56,7 +57,7 @@ COIL_MAP = {
     0: "rotateToConveyor",      # Q1 — motor direction toward turntable
     1: "rotateToTable",       # Q2 — motor direction toward conveyor belt
     2: "vacuumGripper",     # Q8 — vacuum valve on/off
-    3: "controllerActiveIndicator",    # signal IN from S7-1200: "workpiece ready at table"
+    3: "controllerActiveIndicator",    # signal from AB to indicate controller is active.: "workpiece ready at table"
 }
 
 INPUT_MAP = {
@@ -120,12 +121,11 @@ async def _poll(client: AsyncModbusTcpClient):
     changed = False
 
     # ── Read coils (actuator states + handoff flags)
+    state['_connected'] = True
     if COIL_MAP:
         n_coils = max(COIL_MAP.keys()) + 1
         try:
-            result = await client.read_coils(
-                address=0, count=n_coils, slave=UNIT_ID
-            )
+            result = await asyncio.wait_for(client.read_coils(address=0, count=n_coils, slave=UNIT_ID), timeout = POLL_TIMEOUT)
             if result.isError():
                 log.warning(f"Coil read error: {result}")
             else:
@@ -137,12 +137,13 @@ async def _poll(client: AsyncModbusTcpClient):
                         changed = True
         except ModbusException as exc:
             log.warning(f"Coil read exception: {exc}")
-
+            if "not connected" in str(exc).lower():
+               state["_connected"] = False
     # ── Read discrete inputs (physical sensor states)
     if INPUT_MAP:
         n_inputs = max(INPUT_MAP.keys()) + 1
         try:
-            result = await client.read_discrete_inputs(address=0, count=n_inputs, slave=UNIT_ID)
+            result = await asyncio.wait_for(client.read_discrete_inputs(address=0, count=n_inputs, slave=UNIT_ID), timeout = POLL_TIMEOUT)
             if result.isError():
                 log.warning(f"Discrete input read error: {result}")
             else:
@@ -154,14 +155,14 @@ async def _poll(client: AsyncModbusTcpClient):
                         changed = True
         except ModbusException as exc:
             log.warning(f"Discrete input read exception: {exc}")
+            if "not connected" in str(exc).lower():
+                state["_connected"] = False
 
     # ── Read holding registers (status integers)
     if REG_MAP:
         n_regs = max(REG_MAP.keys()) + 1
         try:
-            result = await client.read_holding_registers(
-                address=0, count=n_regs, slave=UNIT_ID
-            )
+            result = await asyncio.wait_for(client.read_holding_registers(address=0, count=n_regs, slave=UNIT_ID), timeout = POLL_TIMEOUT)
             if result.isError():
                 log.warning(f"Register read error: {result}")
             else:
@@ -176,6 +177,8 @@ async def _poll(client: AsyncModbusTcpClient):
                 state["unit_position"] = _POSITION_LABELS.get(code, "UNKNOWN")
         except ModbusException as exc:
             log.warning(f"Register read exception: {exc}")
+            if "not connected" in str(exc).lower():
+                state['_connected'] = False
 
     if changed:
         state["_last_update"] = datetime.now().isoformat()
@@ -214,6 +217,44 @@ async def write_coil(address: int, value: bool) -> bool:
         log.error(f"write_coil exception: {exc}")
         return False
 
+
+#async def benchmark_read_coil(address: int = 0):
+  #  """
+   # Perform one fresh Modbus TCP coil read from the Micro820
+    #using the existing persistent connection.
+#
+ #   Benchmark-only function.
+  #  Does not modify state[].
+   # """
+
+ #   if _client is None or not _client.connected:
+  #      raise RuntimeError("Allen-Bradley PLC is not connected")
+
+   # result = await _client.read_coils(address=address,count=1,slave=UNIT_ID)
+
+    #if result.isError():
+     #   raise RuntimeError(f"AB Modbus read error: {result}")
+#
+ #   return bool(result.bits[0])
+
+
+async def benchmark_read_coil(address=0):
+    """
+    Fresh Modbus TCP coil read using the existing connection.
+    """
+
+    if _client is None:
+        raise RuntimeError("AB Modbus client is not initialized")
+
+    if not _client.connected:
+        raise RuntimeError("AB Modbus client is not connected")
+
+    result = await _client.read_coils(address=address,count=1,slave=UNIT_ID)
+
+    if result.isError():
+        raise RuntimeError(f"AB Modbus read failed: {result}")
+
+    return bool(result.bits[0])
 
 # Main connection loop
 

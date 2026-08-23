@@ -1,6 +1,6 @@
 # Configuration Procedure for Ignition Scada:
 
-Ignition is built around the idea that everything flows throuugh the **Tag system**. As a result, Tags need to be understood deeply before doing HMI or historian (where are just consumers of Tags)
+Ignition is built around the idea that everything flows through the **Tag system**. As a result, Tags need to be understood deeply before doing HMI or historian (where are just consumers of Tags)
 
 ## Layer 1 - The Gateway
  The gateway is the Ignition server process running on PC. It handles everything: OPC-UA connections, tag managaments, historian storage, serving HMI to browsers and so on. It is configured through the Gateway webpaghe at ```http://localhost:8088```. It can be though as the BRAIN of the SCADA Systems.

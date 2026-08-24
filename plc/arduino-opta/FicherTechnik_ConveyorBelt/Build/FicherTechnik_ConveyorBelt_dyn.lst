@@ -24,25 +24,32 @@
 0000	00 02 01 00 07 00 00 00 01 00 00 00 
 
 *
+*	REQUIREMENTS for DATA BLOCK %M201
+*		Process image: 0
+*		Number of elements: 512
+*		Data size (bytes): 2
+000C	00 00 C9 00 00 02 00 00 02 00 00 00 
+
+*
 *	REQUIREMENTS for DATA BLOCK %Q0
 *		Process image: 0
 *		Number of elements: 4
 *		Data size (bytes): 1
-000C	00 02 00 00 04 00 00 00 01 00 00 00 
+0018	00 02 00 00 04 00 00 00 01 00 00 00 
 
 *
 *	REQUIREMENTS for DATA BLOCK %M60000
 *		Process image: 0
 *		Number of elements: 1
 *		Data size (bytes): 4
-0018	00 00 60 EA 01 00 00 00 04 00 00 00 
+0024	00 00 60 EA 01 00 00 00 04 00 00 00 
 
 *
 *	REQUIREMENTS for DATA BLOCK %I0
 *		Process image: 0
 *		Number of elements: 8
 *		Data size (bytes): 2
-0024	00 01 00 00 08 00 00 00 02 00 00 00 
+0030	00 01 00 00 08 00 00 00 02 00 00 00 
 
 *
 * List of all references to data allocated on data blocks
@@ -53,88 +60,96 @@
 0000	00 00 01 00 00 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003C4
-000C	C4 03 00 00 
+*		Code offset: 0x00000444
+000C	44 04 00 00 
+
+*
+*	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #0 OF DATA BLOCK %I0
+0010	00 00 00 00 00 00 00 00 01 01 01 00 
+
+*		Instruction type: 0x00
+*		Code offset: 0x00000454
+001C	54 04 00 00 
 
 *
 *	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #3 OF DATA BLOCK %Q1
-0010	00 00 01 00 03 00 00 00 02 01 01 00 
+0020	00 00 01 00 03 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003D0
-001C	D0 03 00 00 
+*		Code offset: 0x00000450
+002C	50 04 00 00 
+
+*
+*	1 REFERENCE(S) TO 16-BIT VAR AT BYTE #0 OF DATA BLOCK %M201
+0030	00 00 C9 00 00 00 00 00 00 02 01 00 
+
+*		Instruction type: 0x00
+*		Code offset: 0x00000558
+003C	58 05 00 00 
 
 *
 *	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #2 OF DATA BLOCK %Q0
-0020	00 00 00 00 02 00 00 00 02 01 01 00 
+0040	00 00 00 00 02 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003E4
-002C	E4 03 00 00 
+*		Code offset: 0x00000464
+004C	64 04 00 00 
 
 *
 *	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #1 OF DATA BLOCK %Q0
-0030	00 00 00 00 01 00 00 00 02 01 01 00 
+0050	00 00 00 00 01 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003E0
-003C	E0 03 00 00 
-
-*
-*	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #8 OF DATA BLOCK %I0
-0040	00 00 00 00 08 00 00 00 01 01 01 00 
-
-*		Instruction type: 0x00
-*		Code offset: 0x000003D8
-004C	D8 03 00 00 
+*		Code offset: 0x00000460
+005C	60 04 00 00 
 
 *
 *	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #2 OF DATA BLOCK %Q1
-0050	00 00 01 00 02 00 00 00 02 01 01 00 
+0060	00 00 01 00 02 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003CC
-005C	CC 03 00 00 
+*		Code offset: 0x0000044C
+006C	4C 04 00 00 
 
 *
 *	1 REFERENCE(S) TO 32-BIT VAR AT BYTE #0 OF DATA BLOCK %M60000
-0060	00 00 60 EA 00 00 00 00 00 04 01 00 
+0070	00 00 60 EA 00 00 00 00 00 04 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x00000130
-006C	30 01 00 00 
+*		Code offset: 0x000001B0
+007C	B0 01 00 00 
 
 *
 *	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #1 OF DATA BLOCK %Q1
-0070	00 00 01 00 01 00 00 00 02 01 01 00 
+0080	00 00 01 00 01 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003C8
-007C	C8 03 00 00 
+*		Code offset: 0x00000448
+008C	48 04 00 00 
 
 *
 *	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #3 OF DATA BLOCK %Q0
-0080	00 00 00 00 03 00 00 00 02 01 01 00 
+0090	00 00 00 00 03 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003E8
-008C	E8 03 00 00 
+*		Code offset: 0x00000468
+009C	68 04 00 00 
 
 *
 *	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #0 OF DATA BLOCK %Q0
-0090	00 00 00 00 00 00 00 00 02 01 01 00 
+00A0	00 00 00 00 00 00 00 00 02 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003DC
-009C	DC 03 00 00 
+*		Code offset: 0x0000045C
+00AC	5C 04 00 00 
 
 *
-*	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #2 OF DATA BLOCK %I0
-00A0	00 00 00 00 02 00 00 00 01 01 01 00 
+*	1 REFERENCE(S) TO 8-BIT VAR AT BYTE #6 OF DATA BLOCK %I0
+00B0	00 00 00 00 06 00 00 00 01 01 01 00 
 
 *		Instruction type: 0x00
-*		Code offset: 0x000003D4
-00AC	D4 03 00 00 
+*		Code offset: 0x00000458
+00BC	58 04 00 00 
 
 
 ***************************************************
@@ -142,10 +157,10 @@
 ***************************************************
 
 NAME: sysCfgAnalogRes  - NUM: 1
-	 Patch - TYPE: 0x0 - CODE OFFSET: 0x0000057C
+	 Patch - TYPE: 0x0 - CODE OFFSET: 0x00000624
 
 NAME: sysCfgProgInput  - NUM: 1
-	 Patch - TYPE: 0x0 - CODE OFFSET: 0x00000580
+	 Patch - TYPE: 0x0 - CODE OFFSET: 0x00000628
 
 NAME: sysDBase_SetExtTable  - NUM: 1
-	 Patch - TYPE: 0x0 - CODE OFFSET: 0x000004B0
+	 Patch - TYPE: 0x0 - CODE OFFSET: 0x00000548

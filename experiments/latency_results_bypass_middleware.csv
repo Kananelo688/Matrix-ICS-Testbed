@@ -1,4 +1,0 @@
-device,protocol,latency_ms
-Allen-Bradley Micro820,Modbus TCP,5.293411799852038
-Schneider M221,Modbus TCP,13.116822200026945
-Siemens S7-1200,OPC UA,65.23206040011428

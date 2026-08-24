@@ -1,0 +1,64 @@
+matrix@raspberrypi:~ $ nmap -sV -A -p 502,102,44818,4840 192.168.50.10 192.168.50.20 192.168.50.30
+Starting Nmap 7.95 ( https://nmap.org ) at 2026-08-04 21:04 SAST
+mass_dns: warning: Unable to determine any DNS servers. Reverse DNS is disabled. Try using --system-dns or specify valid servers with --dns-servers
+Nmap scan report for 192.168.50.10
+Host is up (0.011s latency).
+
+PORT      STATE  SERVICE      VERSION
+102/tcp   open   iso-tsap     Siemens S7 PLC
+| s7-info:
+|   Module: 6ES7 214-1AG40-0XB0
+|   Basic Hardware: 6ES7 214-1AG40-0XB0
+|_  Version: 4.5.1
+502/tcp   closed mbap
+4840/tcp  open   opcua-tcp?
+44818/tcp closed EtherNetIP-2
+Service Info: Device: specialized
+
+Nmap scan report for 192.168.50.20
+Host is up (0.0013s latency).
+
+PORT      STATE  SERVICE       VERSION
+102/tcp   closed iso-tsap
+502/tcp   open   modbus        Modbus TCP
+4840/tcp  closed opcua-tcp
+44818/tcp open   EtherNet-IP-2
+| enip-info:
+|   type: Programmable Logic Controller (14)
+|   vendor: Rockwell Automation/Allen-Bradley (1)
+|   productName: 2080-LC20-20QWB
+|   serialNumber: 0x60f13679
+|   productCode: 180
+|   revision: 12.11
+|   status: 0x0034
+|   state: 0x03
+|_  deviceIp: 192.168.50.20
+
+Nmap scan report for 192.168.50.30
+Host is up (0.00082s latency).
+
+PORT      STATE  SERVICE      VERSION
+102/tcp   closed iso-tsap
+502/tcp   open   mbap?
+4840/tcp  closed opcua-tcp
+44818/tcp closed EtherNetIP-2
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at https://nmap.org/cgi-bin/submit.cgi?new-service :
+SF-Port502-TCP:V=7.95%I=7%D=8/4%Time=6A7237D0%P=arm-unknown-linux-gnueabih
+SF:f%r(GetRequest,9,"\0\0\0\0\0\x03H\x80\n")%r(HTTPOptions,9,"\0\0\0\0\0\x
+SF:03S\x80\n")%r(RTSPRequest,9,"\0\0\0\0\0\x03S\x80\n")%r(RPCCheck,9,"\0\0
+SF:\0\0\0\x03\x1d\x80\n")%r(DNSVersionBindReqTCP,9,"\0\0\0\0\0\x03\0\x80\n
+SF:")%r(DNSStatusRequestTCP,9,"\0\0\0\0\0\x03\0\x80\n")%r(SSLSessionReq,9,
+SF:"\0\0\0\0\0\x03\0\x80\n")%r(TerminalServerCookie,9,"\0\0\0\0\0\x03\0\x8
+SF:0\n")%r(TLSSessionReq,9,"\0\0\0\0\0\x03\0\x80\n")%r(Kerberos,9,"\0\0\0\
+SF:0\0\x03n\x80\n")%r(SMBProgNeg,9,"\0\0\0\0\0\x03M\x80\n")%r(X11Probe,9,"
+SF:\0\0\0\0\0\x03\0\x80\n")%r(FourOhFourRequest,9,"\0\0\0\0\0\x03i\x80\n")
+SF:%r(LPDString,9,"\0\0\0\0\0\x03l\x80\n")%r(LDAPSearchReq,9,"\0\0\0\0\0\x
+SF:03\x02\x80\n")%r(LDAPBindReq,9,"\0\0\0\0\0\x03\x07\x80\n")%r(SIPOptions
+SF:,9,"\0\0\0\0\0\x03S\x80\n")%r(LANDesk-RC,9,"\0\0\0\0\0\x03\0\x80\n")%r(
+SF:TerminalServer,9,"\0\0\0\0\0\x03\0\x80\n")%r(NCP,9,"\0\0\0\0\0\x03\0\x8
+SF:0\n")%r(NotesRPC,9,"\0\0\0\0\0\x03\0\x80\n")%r(WMSRequest,9,"\0\0\0\0\0
+SF:\x03\x0b\x80\n")%r(oracle-tns,9,"\0\0\0\0\0\x03\0\x80\n")%r(ms-sql-s,9,
+SF:"\0\0\0\0\0\x03\0\x80\n")%r(afp,9,"\0\0\0\0\0\x03\0\x80\n")%r(giop,9,"\
+SF:0\0\0\0\0\x03\x01\x80\n");
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .

@@ -1,9 +1,37 @@
 <modbusServer Version="2.0">
+  <modbusRegister name="COILS">
+    <mapping variable="_IO_EM_DO_00" parent="Micro820" dataType="Bool" address="000001" va="0x414">
+      <MBVarInfo ElemType="Bool" SubElemType="Any" DataTypeSize="1" />
+    </mapping>
+    <mapping variable="_IO_EM_DO_01" parent="Micro820" dataType="Bool" address="000002" va="0x415">
+      <MBVarInfo ElemType="Bool" SubElemType="Any" DataTypeSize="1" />
+    </mapping>
+    <mapping variable="_IO_EM_DO_05" parent="Micro820" dataType="Bool" address="000003" va="0x419">
+      <MBVarInfo ElemType="Bool" SubElemType="Any" DataTypeSize="1" />
+    </mapping>
+    <mapping variable="_IO_EM_DO_06" parent="Micro820" dataType="Bool" address="000004" va="0x41a">
+      <MBVarInfo ElemType="Bool" SubElemType="Any" DataTypeSize="1" />
+    </mapping>
+  </modbusRegister>
+  <modbusRegister name="DISCRETES_INPUTS">
+    <mapping variable="_IO_EM_DI_04" parent="Micro820" dataType="Bool" address="100001" va="0x41f">
+      <MBVarInfo ElemType="Bool" SubElemType="Any" DataTypeSize="1" />
+    </mapping>
+    <mapping variable="_IO_EM_DI_05" parent="Micro820" dataType="Bool" address="100002" va="0x420">
+      <MBVarInfo ElemType="Bool" SubElemType="Any" DataTypeSize="1" />
+    </mapping>
+    <mapping variable="_IO_EM_DI_09" parent="Micro820" dataType="Bool" address="100003" va="0x424">
+      <MBVarInfo ElemType="Bool" SubElemType="Any" DataTypeSize="1" />
+    </mapping>
+  </modbusRegister>
   <modbusRegister name="HOLDING_REGISTERS">
-    <mapping variable="seimensHandshakeReg" parent="Micro820" dataType="Int" address="400001" va="0x466">
+    <mapping variable="seimensHandshakeReg" parent="Micro820" dataType="Int" address="400001" va="0x464">
       <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
     </mapping>
-    <mapping variable="optaHandshakeReg" parent="Micro820" dataType="Int" address="400002">
+    <mapping variable="optaHandshakeReg" parent="Micro820" dataType="Int" address="400002" va="0x466">
+      <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
+    </mapping>
+    <mapping variable="transferUnitStatusCode" parent="Micro820" dataType="Int" address="400003">
       <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
     </mapping>
   </modbusRegister>

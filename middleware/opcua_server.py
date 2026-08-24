@@ -8,8 +8,8 @@ OPC-UA Aggregation Server (Middleware → Ignition SCADA)
 Exposes a unified OPC-UA address space under Objects/MATRIX/ with four zones:
   System/        ← middleware health and connectivity
   Turntable/     ← Siemens S7-1200 tags
-  TransferUnit/  ← Allen-Bradley Micro820 tags
-  Conveyor/      ← Arduino Opta tags
+  TransferUnit/  ← Allen-Bradley Micro820 tags (EtherNet/IP)
+  Conveyor/      ← Schneider TM221 tags (Modbus TCP)
 
 Ignition connects to opc.tcp://<RPi-IP>:4840 as an OPC-UA client.
 
@@ -24,8 +24,8 @@ from asyncua import Server, ua
 # Import PLC client modules
 try:
     import siemens_client
-    import ab_client
-    import opta_client
+    import ab_cip_client
+    import tm221_client
     _STANDALONE = False
 except ImportError:
     _STANDALONE = True
@@ -66,20 +66,20 @@ if _STANDALONE:
         "siemensHealthy": False, "_connected": False,
     }
 
-    ab_client = _M()
-    ab_client.state = {
+    ab_cip_client = _M()
+    ab_cip_client.state = {
         "rotateToConveyor": False, "rotateToTable": False,
         "vacuumGripper": False, "controllerActiveIndicator": False,
         "transferUnitAtConveyor": False, "transferUnitAtTurntable": False,
         "turntableInPosition": False,
-        "siemensHandshakeCode": 0, "arduinoHandshakeCode": 0,
+        "siemensHandshakeCode": 0, "schneiderHandShakeCode": 0,
         "unit_position_code": 0, "_connected": False,
     }
 
-    opta_client = _M()
-    opta_client.state = {
+    tm221_client = _M()
+    tm221_client.state = {
         "conveyorBelt": False, "separatorValve": False,
-        "sliderMotor": False, "arduinoActiveIndicator": False,
+        "sliderMotor": False, "tm221ActiveIndicator": False,
         "workpieceOnConveyor": False, "palletReady": False,
         "workpieceOnPallet": False, "sliderInPosition": False,
         "_connected": False,
@@ -90,8 +90,8 @@ if _STANDALONE:
 
 SYSTEM_NODES = [
     ("siemens_connected",  "Siemens Connected",     ua.VariantType.Boolean, False, "S7-1200 OPC-UA connection status"),
-    ("ab_connected",       "AB Connected",          ua.VariantType.Boolean, False, "Micro820 Modbus TCP connection status"),
-    ("opta_connected",     "Opta Connected",        ua.VariantType.Boolean, False, "Opta Modbus TCP connection status"),
+    ("ab_connected",       "AB Connected",          ua.VariantType.Boolean, False, "Micro820 EtherNet/IP (CIP) connection status"),
+    ("tm221_connected",    "TM221 Connected",       ua.VariantType.Boolean, False, "TM221 Modbus TCP connection status"),
     ("middleware_uptime",  "Middleware Uptime",     ua.VariantType.String,  False, "Time since middleware started (HH:MM:SS)"),
     ("last_update",        "Last Update",           ua.VariantType.String,  False, "ISO timestamp of last state push"),
 ]
@@ -134,7 +134,7 @@ TRANSFER_UNIT_NODES = [
     ("turntableInPosition",         "Turntable In Position (AB)",     ua.VariantType.Boolean, False, "S4 — turntable home position (AB-side read)"),
     # Holding registers
     ("siemensHandshakeCode",        "Siemens Handshake Code",         ua.VariantType.Int16,   False, "Handshake register read from Siemens"),
-    ("arduinoHandshakeCode",        "Arduino Handshake Code",         ua.VariantType.Int16,   False, "Handshake register read from Opta"),
+    ("arduinoHandshakeCode",        "TM221 Handshake Code",           ua.VariantType.Int16,   False, "Handshake register read from TM221"),
     ("transferUnitPositionCode",    "Unit Position Code",             ua.VariantType.Int16,   False, "0=Unknown 1=AtTable 2=AtBelt 3=InTransit"),
 ]
 
@@ -143,7 +143,7 @@ CONVEYOR_NODES = [
     ("conveyorBelt",                "Conveyor Belt Motor",            ua.VariantType.Boolean, False, "Q5 — belt drive motor active"),
     ("separatorValve",              "Separator Valve",                ua.VariantType.Boolean, False, "Q6 — separator valve active"),
     ("sliderMotor",                 "Slider Motor",                   ua.VariantType.Boolean, False, "Q3 — motorised pusher active"),
-    ("arduinoActiveIndicator",      "Arduino Active Indicator",       ua.VariantType.Boolean, False, "Opta heartbeat indicator"),
+    ("tm221ActiveIndicator",        "TM221 Active Indicator",         ua.VariantType.Boolean, False, "TM221 heartbeat indicator"),
     # Discrete inputs
     ("workpieceOnConveyor",         "Workpiece On Conveyor",          ua.VariantType.Boolean, False, "B1 — light barrier; workpiece on belt"),
     ("palletReady",                 "Pallet Ready",                   ua.VariantType.Boolean, False, "B2 — light barrier; pallet present"),
@@ -159,13 +159,13 @@ def _build_source_map() -> dict:
     for tag, *_ in TURNTABLE_NODES:
         src[tag] = (siemens_client.state, tag)
     for tag, *_ in TRANSFER_UNIT_NODES:
-        src[tag] = (ab_client.state, tag)
+        src[tag] = (ab_cip_client.state, tag)
     for tag, *_ in CONVEYOR_NODES:
-        src[tag] = (opta_client.state, tag)
+        src[tag] = (tm221_client.state, tag)
     # System nodes
     src["siemens_connected"] = (siemens_client.state, "_connected")
-    src["ab_connected"]      = (ab_client.state,      "_connected")
-    src["opta_connected"]    = (opta_client.state,    "_connected")
+    src["ab_connected"]      = (ab_cip_client.state,  "_connected")
+    src["tm221_connected"]   = (tm221_client.state,   "_connected")
     return src
 
 # Build OPC-UA address space 
@@ -196,6 +196,8 @@ async def _build_address_space(server: Server, ns: int) -> dict:
     await _add_zone(matrix_node, "Turntable",    TURNTABLE_NODES)
     await _add_zone(matrix_node, "TransferUnit", TRANSFER_UNIT_NODES)
     await _add_zone(matrix_node, "Conveyor",     CONVEYOR_NODES)
+
+    await _build_benchmark_nodes(matrix_node, ns)
 
     total = len(nodes)
     log.info(
@@ -240,14 +242,14 @@ BENCHMARK_NODES = {
     "ab_request": None,
     "ab_response": None,
 
-    "opta_request": None,
-    "opta_response": None,
+    "tm221_request": None,
+    "tm221_response": None,
 }
 
 BENCHMARK_STATE = {
     "siemens_last_request": 0,
     "ab_last_request": 0,
-    "opta_last_request": 0,
+    "tm221_last_request": 0,
 }
 
 async def _handle_command_writes(nodes:dict):
@@ -310,17 +312,17 @@ async def _build_benchmark_nodes(matrix_node, ns: int):
         ua.VariantType.Int64
     )
 
-    # Arduino Opta
-    opta_request = await benchmark.add_variable(
+    # Schneider TM221
+    tm221_request = await benchmark.add_variable(
         ns,
-        "Opta_Request",
+        "TM221_Request",
         0,
         ua.VariantType.Int64
     )
 
-    opta_response = await benchmark.add_variable(
+    tm221_response = await benchmark.add_variable(
         ns,
-        "Opta_Response",
+        "TM221_Response",
         0,
         ua.VariantType.Int64
     )
@@ -328,7 +330,7 @@ async def _build_benchmark_nodes(matrix_node, ns: int):
     # Allow benchmark PC to write request counters.
     await siemens_request.set_writable()
     await ab_request.set_writable()
-    await opta_request.set_writable()
+    await tm221_request.set_writable()
 
     BENCHMARK_NODES["siemens_request"] = siemens_request
     BENCHMARK_NODES["siemens_response"] = siemens_response
@@ -336,8 +338,8 @@ async def _build_benchmark_nodes(matrix_node, ns: int):
     BENCHMARK_NODES["ab_request"] = ab_request
     BENCHMARK_NODES["ab_response"] = ab_response
 
-    BENCHMARK_NODES["opta_request"] = opta_request
-    BENCHMARK_NODES["opta_response"] = opta_response
+    BENCHMARK_NODES["tm221_request"] = tm221_request
+    BENCHMARK_NODES["tm221_response"] = tm221_response
 
     log.info("Benchmark OPC-UA interface created.")
 
@@ -406,9 +408,9 @@ async def _benchmark_loop():
 
                 BENCHMARK_STATE["ab_last_request"] = request
 
-                # Fresh PLC coil read
-                await ab_client.benchmark_read_coil(
-                    address=0
+                # Fresh PLC CIP tag read
+                await ab_cip_client.benchmark_read(
+                    "SchneiderModbusHandshake"
                 )
 
                 # Acknowledge
@@ -424,33 +426,33 @@ async def _benchmark_loop():
 
 
         # ====================================================
-        # Arduino Opta
+        # Schneider TM221
         # ====================================================
 
         try:
 
-            node = BENCHMARK_NODES["opta_request"]
+            node = BENCHMARK_NODES["tm221_request"]
 
             request = await node.read_value()
 
-            if request != BENCHMARK_STATE["opta_last_request"]:
+            if request != BENCHMARK_STATE["tm221_last_request"]:
 
-                BENCHMARK_STATE["opta_last_request"] = request
+                BENCHMARK_STATE["tm221_last_request"] = request
 
                 # Fresh PLC coil read
-                await opta_client.benchmark_read_coil(
+                await tm221_client.benchmark_read_coil(
                     address=0
                 )
 
                 # Acknowledge
                 await BENCHMARK_NODES[
-                    "opta_response"
+                    "tm221_response"
                 ].write_value(request)
 
         except Exception as exc:
 
             log.warning(
-                f"Opta benchmark request failed: {exc}"
+                f"TM221 benchmark request failed: {exc}"
             )
 
 

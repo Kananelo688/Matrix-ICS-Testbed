@@ -54,25 +54,24 @@ POLL_TIMEOUT = 1.5 	# second per read, for it to detect link failure.
 
 COIL_MAP = {
     # address : tag_name
-    0: "rotateToConveyor",      # Q1 — motor direction toward turntable
-    1: "rotateToTable",       # Q2 — motor direction toward conveyor belt
+    0: "rotateToTable",      # Q1 — motor direction toward turntable
+    1: "rotateToConveyor",       # Q2 — motor direction toward conveyor belt
     2: "vacuumGripper",     # Q8 — vacuum valve on/off
     3: "controllerActiveIndicator",    # signal from AB to indicate controller is active.: "workpiece ready at table"
 }
 
 INPUT_MAP = {
     # address : tag_name
-    0: "transferUnitAtConveyor",  # S1 (I1) — limit switch at conveyor belt end
-    1: "transferUnitAtTurntable", # S2 (I2) — limit switch at turntable end
+    0: "transferUnitAtConveyor",  # S1 (I1) — limit switch at conveyor belt end.
+    1: "transferUnitAtTurntable", # S2 (I2) — limit switch at turntable end.
     2: "turntableInPosition", # S4 - limit switch when table in home position.
-
 }
 
 REG_MAP = {
     # address : tag_name
     0: "siemensHandshakeCode",
-    1: "arduinoHandshakeCode",
-    2: "transferUnitPositionCode", # 0=unknown, 1=at table, 2=at belt, 3=in transit   
+    1: "schneiderHandShakeCode",
+    2: "unit_position_code"
 }
 
 # Derived string representation of unit_position_code

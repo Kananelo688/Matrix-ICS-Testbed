@@ -81,4 +81,5 @@ Controller.Micro820.Micro820.seimensHandshakeReg,0
 Controller.Micro820.Micro820.TRANSFER_PART_DONE,0
 Controller.Micro820.Micro820.TRANSFER_PART_IDLE,0
 Controller.Micro820.Micro820.TRANSFER_PART_READY,0
+Controller.Micro820.Micro820.transferUnitStatusCode,
 Controller.Micro820.Micro820.workpieceCounter,0

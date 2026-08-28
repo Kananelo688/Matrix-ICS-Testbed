@@ -19,8 +19,8 @@ import logging
 import signal
 
 import siemens_client
-import ab_client
-import opta_client
+import ab_cip_client
+import tm221_client
 import opcua_server
 
 logging.basicConfig(
@@ -40,8 +40,8 @@ async def run():
 
     tasks = await asyncio.gather(
         siemens_client.run(),
-        ab_client.run(),
-        opta_client.run(),
+        ab_cip_client.run(),
+        tm221_client.run(),
         opcua_server.run(),
         return_exceptions=True
     )

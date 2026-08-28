@@ -1008,7 +1008,7 @@
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>BLK_UDFB 3</InstructionLine>
+                <InstructionLine>BLK_UDFB 2</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -1016,7 +1016,7 @@
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>ST  %UDF1.PARAMW0:X0</InstructionLine>
+                <InstructionLine>ST  %UDF0.PARAMW0:X0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -1024,47 +1024,47 @@
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>ST  %UDF1.PARAMW0:X8</InstructionLine>
+                <InstructionLine>ST  %UDF0.PARAMW0:X8</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF1.RETW0 := %UDF2.RETW0 ]</InstructionLine>
+                <InstructionLine>[ %UDF0.RETW0 := %UDF1.RETW0 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF1.RETW1 := %UDF2.RETW1 ]</InstructionLine>
+                <InstructionLine>[ %UDF0.RETW1 := %UDF1.RETW1 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF1.RETW2 := %UDF2.RETW2 ]</InstructionLine>
+                <InstructionLine>[ %UDF0.RETW2 := %UDF1.RETW2 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF1.RETW3 := %UDF2.RETW3 ]</InstructionLine>
+                <InstructionLine>[ %UDF0.RETW3 := %UDF1.RETW3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>UDF1</InstructionLine>
+                <InstructionLine>UDF0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF2.RETW0 := %UDF1.RETW0 ]</InstructionLine>
+                <InstructionLine>[ %UDF1.RETW0 := %UDF0.RETW0 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF2.RETW1 := %UDF1.RETW1 ]</InstructionLine>
+                <InstructionLine>[ %UDF1.RETW1 := %UDF0.RETW1 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF2.RETW2 := %UDF1.RETW2 ]</InstructionLine>
+                <InstructionLine>[ %UDF1.RETW2 := %UDF0.RETW2 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>[ %UDF2.RETW3 := %UDF1.RETW3 ]</InstructionLine>
+                <InstructionLine>[ %UDF1.RETW3 := %UDF0.RETW3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>END_BLK_UDFB 3</InstructionLine>
+                <InstructionLine>END_BLK_UDFB 2</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
             </InstructionLines>
@@ -1142,11 +1142,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %IWN300.0.1 = 1 ]</InstructionLine>
+                <InstructionLine>LD    [ %IWN300.0.1 = 1 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>S  %M0</InstructionLine>
+                <InstructionLine>S     %M0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
             </InstructionLines>
@@ -1601,6 +1601,88 @@
             <Label />
             <IsLadderSelected>true</IsLadderSelected>
           </RungEntity>
+          <RungEntity>
+            <LadderElements>
+              <LadderEntity>
+                <ElementType>Comparison</ElementType>
+                <ComparisonExpression>%SW212 = 3</ComparisonExpression>
+                <Row>0</Row>
+                <Column>0</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>8</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>7</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>6</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>5</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>4</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>3</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>2</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Coil</ElementType>
+                <Descriptor>%S112</Descriptor>
+                <Comment>Set to 1 to reset the IOScanner on Ethernet</Comment>
+                <Symbol>SB_IOSCANETHRESET</Symbol>
+                <Row>0</Row>
+                <Column>10</Column>
+                <ChosenConnection>Left</ChosenConnection>
+              </LadderEntity>
+              <LadderEntity>
+                <ElementType>Line</ElementType>
+                <Row>0</Row>
+                <Column>9</Column>
+                <ChosenConnection>Left, Right</ChosenConnection>
+              </LadderEntity>
+            </LadderElements>
+            <InstructionLines>
+              <InstructionLineEntity>
+                <InstructionLine>LD    [ %SW212 = 3 ]</InstructionLine>
+                <Comment />
+              </InstructionLineEntity>
+              <InstructionLineEntity>
+                <InstructionLine>ST    %S112</InstructionLine>
+                <Comment />
+              </InstructionLineEntity>
+            </InstructionLines>
+            <Name>RESET_ETHERNET</Name>
+            <MainComment />
+            <Label />
+            <IsLadderSelected>true</IsLadderSelected>
+          </RungEntity>
         </Rungs>
       </ProgramOrganizationUnits>
     </Pous>
@@ -1639,6 +1721,11 @@
             <IsTraced>false</IsTraced>
             <ValueRepresentation>Decimal</ValueRepresentation>
           </WatchListItemEntity>
+          <WatchListItemEntity>
+            <Address>%S112</Address>
+            <IsTraced>false</IsTraced>
+            <ValueRepresentation>BoolNumeric</ValueRepresentation>
+          </WatchListItemEntity>
         </WatchListItemEntities>
       </WatchListEntity>
     </WatchLists>
@@ -1656,7 +1743,9 @@
       <ForcedCount>1</ForcedCount>
     </TimersMemoryAllocation>
     <CountersMemoryAllocation />
-    <RegistersMemoryAllocation />
+    <RegistersMemoryAllocation>
+      <ForcedCount>1</ForcedCount>
+    </RegistersMemoryAllocation>
     <DrumsMemoryAllocation />
     <SbrsMemoryAllocation />
     <ScsMemoryAllocation />
@@ -3013,7 +3102,7 @@
         <Index>0</Index>
         <Symbol>TRANSPORTTIMER</Symbol>
         <Comment>Timer for Rotating the Belt.</Comment>
-        <Preset>3000</Preset>
+        <Preset>2500</Preset>
         <Base>OneMilliSeconds</Base>
       </TimerTM>
     </Timers>
@@ -3136,7 +3225,7 @@
     <UserFunctionBlockPous>
       <UserFunctionBlockPou>
         <Name>TRANSPORTROUTECONTROL</Name>
-        <SectionNumber>3</SectionNumber>
+        <SectionNumber>2</SectionNumber>
         <Rungs>
           <RungEntity>
             <LadderElements>
@@ -3205,7 +3294,7 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD  %M0</InstructionLine>
+                <InstructionLine>LD    %M0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -3213,7 +3302,7 @@
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW1 = 0 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW1 = 0 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -3293,15 +3382,15 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LDN  %Q0.2</InstructionLine>
+                <InstructionLine>LDN   %Q0.2</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND  %I0.0</InstructionLine>
+                <InstructionLine>AND   %I0.0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW1 = 1 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW1 = 1 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -3396,15 +3485,15 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %MW1 = 2 ]</InstructionLine>
+                <InstructionLine>LD    [ %MW1 = 2 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>OR [ %MW1 = 3 ]</InstructionLine>
+                <InstructionLine>OR    [ %MW1 = 3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>ST  %Q0.2</InstructionLine>
+                <InstructionLine>ST    %Q0.2</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
             </InstructionLines>
@@ -3498,11 +3587,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %MW1 &lt;&gt; 0 ]</InstructionLine>
+                <InstructionLine>LD    [ %MW1 &lt;&gt; 0 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>R  %M0</InstructionLine>
+                <InstructionLine>R     %M0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
             </InstructionLines>
@@ -3575,11 +3664,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD  %Q0.2</InstructionLine>
+                <InstructionLine>LD    %Q0.2</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW1 = 2 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW1 = 2 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -3661,11 +3750,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %MW1 = 3 ]</InstructionLine>
+                <InstructionLine>LD    [ %MW1 = 3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>ST  %Q0.1</InstructionLine>
+                <InstructionLine>ST    %Q0.1</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
             </InstructionLines>
@@ -3737,11 +3826,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>BLK  %TM0</InstructionLine>
+                <InstructionLine>BLK   %TM0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %MW1 = 3 ]</InstructionLine>
+                <InstructionLine>LD    [ %MW1 = 3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -3841,11 +3930,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD  %TM0.Q</InstructionLine>
+                <InstructionLine>LD    %TM0.Q</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW1 = 3 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW1 = 3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -3937,11 +4026,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %MW1 = 4 ]</InstructionLine>
+                <InstructionLine>LD    [ %MW1 = 4 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW0 = 3 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW0 = 3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -4014,11 +4103,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %MW1 = 4 ]</InstructionLine>
+                <InstructionLine>LD    [ %MW1 = 4 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW0 &lt; 3 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW0 &lt; 3 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -4113,15 +4202,15 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD [ %MW1 = 5 ]</InstructionLine>
+                <InstructionLine>LD    [ %MW1 = 5 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>OR [ %MW1 = 6 ]</InstructionLine>
+                <InstructionLine>OR    [ %MW1 = 6 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>ST  %Q0.0</InstructionLine>
+                <InstructionLine>ST    %Q0.0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
             </InstructionLines>
@@ -4194,11 +4283,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LDN  %I0.0</InstructionLine>
+                <InstructionLine>LDN   %I0.0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW1 = 5 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW1 = 5 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
@@ -4275,11 +4364,11 @@
             </LadderElements>
             <InstructionLines>
               <InstructionLineEntity>
-                <InstructionLine>LD  %I0.0</InstructionLine>
+                <InstructionLine>LD    %I0.0</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>
-                <InstructionLine>AND [ %MW1 = 6 ]</InstructionLine>
+                <InstructionLine>AND   [ %MW1 = 6 ]</InstructionLine>
                 <Comment />
               </InstructionLineEntity>
               <InstructionLineEntity>

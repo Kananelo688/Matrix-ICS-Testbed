@@ -1,0 +1,41 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Base box selection for Kali Linux
+  config.vm.box = "kalilinux/rolling"
+  # Hostname for the VM
+  config.vm.hostname = "kali-box"
+
+  # Configure a Bridged Network interface with a public static IP address.
+  # Replace '192.168.1.150' with your desired static IP address within your local subnet.
+  config.vm.network "public_network", 
+    ip: "192.168.50.255",
+    bridge: "Matrix-ICS-Testbed"
+
+  # VirtualBox-specific configurations
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "Matrix-Attack-Node"
+    vb.memory = "4096"
+    vb.cpus = 2
+    vb.gui = true
+
+    # Enable nested virtualization if running hardware-bound tools (optional)
+    # vb.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
+  end
+
+  # Inline provisioner to update network configuration and package repos
+  config.vm.provision "shell", inline: <<-SHELL
+    set -e
+    echo "[*] Updating package repositories..."
+    apt-get update -y
+    
+    #Automatically install desktop environment is missing
+    if ! command -v xfce4-session &> /dev/null; then
+      sudo apt-get update
+      sudo apt-get install -y kali-desktop-xfce xorg lightdm
+      sudo systemctl set-default graphical.target
+    fi
+    
+  SHELL
+end

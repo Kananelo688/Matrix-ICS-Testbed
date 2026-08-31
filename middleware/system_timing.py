@@ -19,8 +19,6 @@ import csv
 import os
 from datetime import datetime, timezone
 
-from middleware import opcua_server
-
 # Import client modules
 try:
     import siemens_client
@@ -36,6 +34,35 @@ logging.basicConfig(
     datefmt="%H:%M:%S"
 )
 log = logging.getLogger("SYSTEM_TIMING")
+
+Monitored_Tags = {
+
+    # Monitored Turntable FLAGS. (Key actuators and sensors for timing evaluation from Siemens S7-1200)
+    "inPosition": "TurntableLimitSwitch",
+    "magazineEmpty": "MagazineLightBarrier",
+    "motorTurntable": "MotorTurntable",
+    "drillActive": "MotorDrill",
+    "weldActive": "WeldingLight",
+    "sliderMagazine": "MagazineSlider",
+    
+    # Monitored Transfer Unit FLAGS. (Key actuators and sensors for timing evaluation from Allen-Bradley PLC)
+    "rotateToTable": "RotateToTable",
+    "rotateToConveyor": "RotateToConveyor",
+    "vacuumGripper": "VacuumGripper",
+    "transferUnitAtConveyor": "UnitAtConveyor",
+    "transferUnitAtTurntable": "UnitAtTurntable",
+    
+    # Monitored Conveyor FLAGS. (Key actuators and sensors for timing evaluation from Arduino Opta)
+    "sliderMotor": "SliderMotor",
+    "conveyorBelt": "ConveyorBelt",
+    "separatorValve": "SeparatorValve",
+    "sliderInPosition": "SliderInPosition",
+    "workpieceOnConveyor": "ConveyorLightBarrier",
+    "workpieceOnPallet": "PalletLightBarrier",
+}
+
+ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__)) # This script's directory path, used for CSV file output
+#generated data is stored in ..\data\
 
 # Handle standalone/mock mode if running locally for testing
 if _STANDALONE:
@@ -57,10 +84,10 @@ class ZoneTimingLogger:
         self.tracker = {}
         
         # Initialize CSV header file if it doesn't exist
-        if not os.path.exists(self.csv_filename):
-            with open(self.csv_filename, mode='w', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(["Timestamp", "Tag_Name", "State", "Duration_Sec"])
+        #if not os.path.exists(self.csv_filename): #TO DO: uncomment this check if you want to overwrite the file each time
+        with open(self.csv_filename, mode='w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Timestamp", "Tag_Name", "State", "Duration_Sec"])
 
     def log_transition(self, tag, state, duration):
         """Appends a state transition row to the respective CSV file."""
@@ -85,7 +112,12 @@ class ZoneTimingLogger:
             # Skip metadata keys like connection health strings
             if tag.startswith("_") or not isinstance(current_val, bool):
                 continue
-                
+            if tag not in Monitored_Tags:
+                #log.warning(f"[{self.zone_name}] Unmonitored tag '{tag}' detected; skipping.")
+                continue
+
+            label = Monitored_Tags[tag]
+
             if tag not in self.tracker:
                 # First time seeing this tag, map baseline
                 self.tracker[tag] = {
@@ -100,7 +132,7 @@ class ZoneTimingLogger:
                 elapsed_seconds = (current_time - prev_time).total_seconds()
                 
                 # Log the completed duration of the PREVIOUS state
-                self.log_transition(tag, self.tracker[tag]["state"], elapsed_seconds)
+                self.log_transition(label, self.tracker[tag]["state"], elapsed_seconds)
                 
                 # Update tracker with the new current state
                 self.tracker[tag] = {
@@ -113,9 +145,9 @@ async def timing_engine_loop(interval=0.1):
     log.info("Starting System Timing Engine tracking loop...")
     
     loggers = [
-        ZoneTimingLogger("Turntable", siemens_client, "turntable_timing.csv"),
-        ZoneTimingLogger("TransferUnit", ab_cip_client, "transfer_unit_timing.csv"),
-        ZoneTimingLogger("Conveyor", tm221_client, "conveyor_timing.csv")
+        ZoneTimingLogger("Turntable", siemens_client, os.path.join(ABSOLUTE_PATH,"..","data", "turntable_timing.csv")),
+        ZoneTimingLogger("TransferUnit", ab_cip_client, os.path.join(ABSOLUTE_PATH,"..","data", "transfer_unit_timing.csv")),
+        ZoneTimingLogger("Conveyor", tm221_client, os.path.join(ABSOLUTE_PATH,"..","data", "conveyor_timing.csv"))
     ]
     
     try:
@@ -140,8 +172,8 @@ async def start(scan_interval_seconds=0.1):
 async def run():
     log.info("MATRIX middleware starting...")
     log.info("  Task 1 : Siemens S7-1200  OPC-UA client")
-    log.info("  Task 2 : Allen-Bradley    Modbus TCP client")
-    log.info("  Task 3 : Arduino Opta     Modbus TCP client")
+    log.info("  Task 2 : Allen-Bradley    EtherNet/IP (CIP) client")
+    log.info("  Task 3 : Schneider TM221  Modbus TCP client")
     log.info("  Task 4 : OPC-UA server    → Ignition SCADA")
 
     tasks = await asyncio.gather(

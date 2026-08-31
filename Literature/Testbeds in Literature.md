@@ -249,7 +249,7 @@ The physical system modeled is the **distribution-breaker setup from the Univers
 
 ## 5.3 Experimental Results
 
-The authors first verify correct functional behavior of the emulated plant and controller, then demonstrate two cyber attacks.
+The authors first verify correct functional behavior of the emulated plant and controller, then demonstrate two cyber attacks.s
 
 **Functional experiments**
 - **Normal (breakers closed)**: Voltage waveforms remain sinusoidal; the sum of the three phase voltages is zero; power is delivered to all loads.
@@ -361,8 +361,11 @@ The paper reports qualitative and semi-quantitative results from reconnaissance,
 - **Attacker models & reconnaissance** Three models were considered:
     - A – network access on the Level-1 LAN,
     - B – wireless proximity,
-    - C – physical access to devices. Using standard tools (Wireshark, Zenmap, Ettercap) the authors mapped the network, discovered web interfaces, anonymous FTP on the HMI, and the absence of authentication/encryption on EtherNet/IP. ARP spoofing succeeded, enabling full man-in-the-middle interception and rewriting of tags. Wireless reconnaissance revealed a weak, dictionary-guessable WPA2 pre-shared key and a default administrative password on the access point that exposed the key in clear text. Physical access experiments identified SD-card slots on the PLCs as a potential logic-update vector.
-- **Process attacks and system response**
+    - C – physical access to devices. 
+- Using standard tools (Wireshark, Zenmap, Ettercap) the authors mapped the network, discovered web interfaces, anonymous FTP on the HMI, and the absence of authentication/encryption on EtherNet/IP. ARP spoofing succeeded, enabling full man-in-the-middle interception and rewriting of tags. Wireless reconnaissance revealed a weak, dictionary-guessable WPA2 pre-shared key and a default administrative password on the access point that exposed the key in clear text. Physical access experiments identified SD-card slots on the PLCs as a potential logic-update vector.
+- Thier findings is that ENIP, does not feature any authentication or encryption in out testbed.(It could easily be decoded using protocol analysers such as wireshark). The author also note that they are currently working on `scapy` tool which will aid in generation of ENIP traffic.
+- Thier reconnaissance also revealed that its was possible to capture actions such as remote firmware and logic updates from SCADA to individual PLCs ( And attacker could have access to the program logic or able to manipulate the logic)
+- **Process attacks and system respons e**
     - Attack on differential-pressure sensor DPIT301: the reported value was raised from 20 kPa to 42 kPa. PLC-3 immediately initiated an unscheduled UF backwash cycle.
     - Attack on level sensor LIT401: the reported RO-feed-tank level was lowered from 800 mm to 200 mm. PLC-5 stopped pump P401, reducing treated-water output from an expected 155 gallons to 113 gallons in the observation window (nominal production ≈ 5 gal min⁻¹).
     - Additional experiments examined physics-based (process-invariant) detectors. Key findings include: – the number of consecutive sensor samples used by both the control logic and the detector strongly affects detection latency and false-alarm rate; – intermittent (pulse-width-modulated) attacks can evade simple invariant checks; – attacks launched immediately before or after a power outage are especially hard for invariant-based methods to detect.
@@ -401,4 +404,96 @@ The following are typical critical research questions that a homogeneous testbed
 - How do differences in authentication, session handling, and firmware update mechanisms across vendors affect the feasibility and stealth of multi-stage attacks?
 - What cascading physical effects occur when an attack crosses a protocol/vendor boundary?
 
-# 8.
+# 8. Kraust, Heller, & Mottok (2025): Concept for Designing an ICS Testbed from a Penetration Testing Perspective
+
+## 8.1 Overall Summary of the Paper
+
+This paper proposes an iterative, adversary-centric (penetration-testing-oriented) concept for designing Industrial Control System (ICS) cybersecurity testbeds. The authors argue that most existing ICS testbeds are built from a defender’s or process-fidelity perspective: they replicate real or reference industrial processes (often with high physical fidelity), which makes them expensive, difficult to reconfigure, poorly scalable, and ill-suited to systematically exploring attack chaining, configuration variants, software/version diversity, and lateral movement across security boundaries. In contrast, the authors advocate a bottom-up, modular approach that begins with a minimal viable setup and incrementally expands complexity only after each layer has been thoroughly tested.
+
+The core contribution is a two-stage process (Static System Model definition followed by a Dynamic Penetration Testing Cycle). A Static System Model (SSM) captures the full architecture, devices, communication relationships, services, and external entry points. From this, a restricted System View Model (SVM) is extracted—the portion initially visible/accessible to an adversary. Security boundaries are defined by the perimeter of the SVM; successfully crossing them constitutes a successful breach. Within each testing cycle the attacker’s placement, initial access vectors, and system configurations (including selected vulnerabilities and misconfigurations) can be varied. Impact is assessed primarily via lateral movement beyond the SVM or degradation of operational status. The process draws on the MITRE ATT&CK framework (Enterprise and ICS matrices) to systematize prerequisites, goal indicators, tool enumeration, interactions, and knowledge updates. After sufficient testing of a given model, the SSM or SVM can be refined or expanded, enabling progressive exploration of defense-in-depth and complex attack chains while keeping each iteration manageable.
+
+A secondary contribution is a structured literature analysis of representative ICS testbeds (SWaT, RICS-el, Lancaster, Maynard et al., Hui et al., NIST, VTET, etc.). Using metrics such as category (physical/virtual/hybrid), cost, protocols, coverage of Purdue-model zones (Manufacturing, DMZ, Enterprise), and whether a design derivation process is described, the authors highlight recurring shortcomings: sparse attention to design methodology, over-representation of a few protocols (especially Modbus), limited modeling of IT–OT transitions and modern protocols such as OPC UA, process-centric rather than network/attack-chain focus, and poor reproducibility/scalability of high-fidelity physical setups. The paper concludes by positioning the proposed concept as a remedy and stating the intention to realize a proof-of-concept OPC UA testbed (to be open-sourced) for generating training data for AI-based intrusion detection and automated penetration-testing agents.
+
+No concrete testbed is implemented or described in operational detail in this paper; the work is a conceptual and methodological proposal. An illustrative network architecture is shown in Figure 1, covering multiple levels of the automation hierarchy (Purdue model / IEC 62443). It comprises:
+
+- An OT/Manufacturing Zone with generic control devices on the lower levels.
+- An IT/Enterprise Zone with enterprise systems on the upper levels.
+- Intermediate elements consistent with a typical DMZ separation (though not exhaustively detailed).
+
+The figure marks an “exposed system view model” (red dashed frame) that represents the portion initially visible to an adversary, with one possible entry point highlighted. The full network constitutes the Static System Model; the dashed subset is the System View Model. No specific device inventory, exact inter-device protocols, IP addressing, or concrete software versions are given for this illustrative model—precisely because the concept deliberately leaves configurations variable and to be fixed only inside each Dynamic Penetration Testing Cycle.
+
+The authors explicitly state that future work will apply the concept to construct an OPC UA-centric testbed. OPC UA is highlighted because it is underrepresented in existing literature (relative to **Modbus**, **DNP3**, **EtherNet/IP**, **s7comm**, etc.), supports modern service-oriented interactions (discovery, authentication, etc.), and is increasingly important in industrial systems. The planned testbed is intended to be modular (favoring containerization for easy swapping of components and hybrid operation), network-oriented rather than process-oriented, and open-sourced. No further architectural layers, protocol mappings between specific devices, or implementation details are provided in the present document.
+
+# 9. Jorge et al(2025): Containerized Testbed Architecture for Cybersecurity Data Collection on Malicious Activities in Industrial Water Systems
+
+## 9.1 Overall Paper Summary
+This paper presents a fully containerized, open-source testbed architecture for cybersecurity research on industrial water systems (capture, treatment, and distribution). Motivated by the increasing IT/OT convergence under Industry 4.0, the scarcity of up-to-date public datasets, and the high cost/limited accessibility of physical testbeds (e.g., SWaT, WADI), the authors design a modular Docker-based platform structured according to the Purdue Enterprise Reference Architecture (PERA). The testbed simulates realistic device behavior, network traffic, and process dynamics while enabling controlled cyberattack scenarios and centralized multi-source data collection (network packets, logs, and resource metrics) via the ELK stack.
+
+The architecture integrates traditional ICS components (PLCs, SCADA) with Industry 4.0 elements (IoT devices, MQTT, HTTP/REST). Three subprocesses (SP1–SP3) cover the full water cycle, using Modbus TCP for PLC control, MQTT for intermediate distribution, and HTTP for digital metering. An attacker container (Kali Linux) performs reconnaissance (Nmap), DDoS (hping3), web-service scanning (Nikto), and Modbus command-injection attacks. Experiments demonstrate successful simulation of normal operation and malicious activities, with clear observable impacts on metrics and the ability to collect labeled data suitable for machine-learning-based detection research. The platform is released on GitHub and is positioned as a low-cost, reproducible, and scalable alternative to physical or complex virtual testbeds.
+
+## 9.2 Testbed Architecture
+
+The testbed is a pure virtual, containerized (Docker + Docker Compose) environment running on a Linux host. It follows the Purdue model and is segmented into three Docker networks:
+- **scadanet** (172.20.0.0/16) – ICS core
+- **cloud** (172.19.0.0/16) – IoT / distribution / data services
+- **elk** (172.21.0.0/16) – monitoring and data collection
+
+**Layer / Purdue mapping and components**
+- **Level 0 (Process)** – Simulated via software functions that generate realistic, time-correlated random values for sensors and actuators (dam level, tank level, network pressure, flow, pump status). No physical hardware.
+- **Level 1 (Control)**
+    - Three independent PLC containers (Python + pyModbusTCP.server):  
+        – PLC1: dam level (register 0)  
+        – PLC2: treatment-tank level + capture-pump control (registers 0/1)  
+        – PLC3: network pressure + distribution-pump/pressurizer control (registers 0/1)
+    - Protocol: **Modbus TCP** (port 502).
+- **Level 2 (Supervisory)**
+    - SCADAPY (lightweight Python Modbus client + REST API)
+    - SCADABR (full open-source SCADA, supports multiple protocols, HMI, historian-like functionality)
+    - Protocols used to pull data: **Modbus TCP**, **MQTT**, **HTTP**.
+- **Level 3 / Industrial perimeter & Level 4 / Business** (simplified)
+    - MQTT broker (Eclipse Mosquitto) + MQTT Sensor / MQTT Actuator containers (Java) for intermediate distribution (SP2).
+    - Digital water-meter container (shell script) + RESTful web service (Spring Boot + H2 database) for final distribution metering (SP3).
+    - Protocols: **MQTT** (topic sensor/pressure or similar, port 1883) and **HTTP/REST** (JSON POST/GET, port 8080).
+
+**Process flow (three subprocesses)**
+- **SP1 (Capture & Treatment)**: PLC1–PLC3 + sensors/actuators over Modbus TCP.
+- **SP2 (Intermediate Distribution)**: IoT pressure sensor publishes → MQTT broker → IoT actuator (pressurizer) subscribes and acts.
+- **SP3 (Final Distribution / Metering)**: Digital meter sends flow readings via HTTP POST to REST service for storage/billing simulation.
+
+All operational data converge in the SCADA systems, which present a consolidated HMI view. An attacker container is attached to both scadanet and cloud networks and can reach every component. Data collection (Packetbeat, Filebeat, Metricbeat → Logstash → Elasticsearch → Kibana) runs on the elk network and captures traffic, container logs, and host/container resource metrics.
+
+## 9.3 Experiments
+
+Experiments were conducted in two phases: normal operation and attack scenarios.
+**Normal operation**
+- PLCs continuously update Modbus registers with realistic random walks.
+- MQTT sensor publishes pressure values every 30 s; actuator reacts according to thresholds.
+- Digital meter periodically POSTs JSON flow readings.
+- SCADABR successfully registers all data sources and displays live values, historical trends, and a graphical process overview (reservoirs, pumps, sensors).
+
+**Attack scenarios** (MITRE ATT&CK for ICS inspired)
+1. **Reconnaissance**: Nmap host discovery (-sn) and service/version detection (-sV -O) correctly identified open ports 502 (Modbus) and 1883 (MQTT) and the associated services. Packet captures showed the scanning traffic.
+2. **DDoS (SYN flood)**: hping3 with random source IPs against PLC3 (port 502). Results:
+    - ~300 % increase in network traffic.
+    - Clear spikes in CPU and memory utilization of the target container (visualized in Kibana).
+    - External (randomized) source IPs appeared in Packetbeat captures.
+3. **Web-service attack**: Nikto scans against SCADAPY, SCADABR, and the REST service revealed missing security headers (X-Frame-Options, X-XSS-Protection, etc.), enabled PUT/DELETE methods on SCADABR, and exposure of Tomcat manager interfaces—classic misconfigurations that enable XSS, clickjacking, data injection, or application deployment.
+4. **Modbus command injection**: Custom Python script (pymodbus) successfully wrote the value 100 into register 0 of all three PLCs, altering the reported dam level, tank level, and network pressure. Packet captures confirmed the write requests from the attacker IP.
+
+All attack traffic, logs, and metric changes were successfully ingested by the ELK stack, demonstrating the platform’s suitability for generating labeled datasets for detection research. The authors emphasize that the attacks served primarily to validate data-collection capabilities rather than to perform exhaustive vulnerability research.
+
+**Strengths*
+- **Accessibility and reproducibility**: Fully open-source (GitHub), pure Docker, no proprietary hardware or licenses. Any researcher can stand up the entire environment with Docker Compose.
+- **Modularity and Industry 4.0 coverage**: Clean separation of traditional ICS (Modbus PLCs + SCADA) and modern IoT components (MQTT, HTTP/REST). Easy to swap or extend containers.
+- **Realistic data collection**: Multi-source (packets + logs + metrics) via a production-grade stack (ELK). Enables both network-based and host-based detection research.
+- **Purdue-aligned segmentation**: Clear network isolation supports realistic lateral-movement and zone-traversal studies.
+- **Low cost and rapid iteration**: Ideal for generating large volumes of attack data or teaching environments.
+
+**Limitations**
+
+- **Fidelity of process simulation**: Sensor/actuator values are simple random walks with basic threshold logic; there is no fluid-dynamics, chemistry, or closed-loop control model. Physical-process attacks (e.g., altering chemical dosing as in the Oldsmar incident) cannot be studied with realistic consequences.
+- **Limited protocol and device diversity**: Only Modbus TCP, MQTT, and HTTP. No OPC UA, DNP3, EtherNet/IP, PROFINET, or proprietary PLC firmware.
+- **Simplified IT/OT boundary**: No true DMZ, enterprise-zone services, or realistic authentication/authorization between zones.
+- **Attack surface is artificial**: Many vulnerabilities (open Tomcat managers, missing headers, unauthenticated Modbus) are configuration artifacts of the simulation rather than inherent protocol or product weaknesses.
+- **Scalability and performance claims unquantified**: No large-scale experiments, multi-tenant use, or resource-consumption benchmarks under sustained load.
+- **No defensive components**: Firewalls, IDS/IPS, or SIEM correlation rules are left for future work; the current platform is primarily an attack-and-collect environment.

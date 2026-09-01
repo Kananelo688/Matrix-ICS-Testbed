@@ -195,3 +195,4 @@ if __name__ == "__main__":
         print("===================================================================================\n") #type: ignore
         
         summary_table.to_csv(r"C:\Users\chabz\Matrix-ICS-Testbed\data\exp1_summary_metrics.csv", index=False) #type: ignore
+        df_results.to_csv(r"C:\Users\chabz\Matrix-ICS-Testbed\data\raw_latency_data.csv", index=False) #type: ignore

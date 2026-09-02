@@ -169,6 +169,7 @@ async def start(scan_interval_seconds=0.1):
         await timing_engine_loop(interval=scan_interval_seconds)
     except KeyboardInterrupt:
         log.info("Timing evaluation terminated by user interface.")
+
 async def run():
     log.info("MATRIX middleware starting...")
     log.info("  Task 1 : Siemens S7-1200  OPC-UA client")
@@ -189,6 +190,7 @@ async def run():
             log.error(f"Task {i+1} exited with error: {result}")
 
     # If run directly as a script, start tracking immediately
+
 if __name__ == "__main__":
     try:
         asyncio.run(run())

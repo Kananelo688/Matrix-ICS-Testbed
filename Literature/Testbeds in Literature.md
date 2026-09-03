@@ -497,3 +497,78 @@ All attack traffic, logs, and metric changes were successfully ingested by the E
 - **Attack surface is artificial**: Many vulnerabilities (open Tomcat managers, missing headers, unauthenticated Modbus) are configuration artifacts of the simulation rather than inherent protocol or product weaknesses.
 - **Scalability and performance claims unquantified**: No large-scale experiments, multi-tenant use, or resource-consumption benchmarks under sustained load.
 - **No defensive components**: Firewalls, IDS/IPS, or SIEM correlation rules are left for future work; the current platform is primarily an attack-and-collect environment.
+
+# Shore, Zeadally, Keshaariya(2021): Zero Trust: The What,How, Why, and When
+
+(This is not a testbed paper, its a paper on Zero Trust, I just need to understand it)
+### 1. What is Zero Trust?
+
+Zero Trust is a **data-centric security paradigm** based on the principle  
+**“Never trust, always verify.”**
+It rests on two fundamental assumptions:
+- External **and internal** threats are always present on the network.
+- Being “inside” the network (local/internal) does **not** make anything trusted. Lateral movement by attackers is a proven and common tactic.
+**Core concepts commonly associated with Zero Trust:**
+- **Just-in-Time Access (JITA)** + **Just-Enough Access (JEA)**: Authentication and authorization decisions are made at the moment of the request; only the minimum privileges needed for that specific request are granted, and only for the duration of the request.
+- Tokenization or encryption of sensitive data to shrink the attack surface.
+- **Adaptive / dynamic policies** that continuously recompute access decisions using as many contextual signals as possible (identity, device posture, location, time, threat intelligence, behavior, etc.).
+Zero Trust does **not** eliminate the need for assurance of the underlying security mechanisms themselves. It simply removes the assumption of ongoing trust after an initial check and forces continuous re-evaluation.
+
+The authors note that there is still no single universally agreed definition, but the above ideas form the practical core.
+
+### 2. How is Zero Trust Architected?
+
+**NIST SP 800-207 (2020)** is the primary reference. It defines seven original tenets and a logical architecture with three zones:
+- **Untrusted Zone** (users, devices, external networks)
+- **Policy Domain** (the decision-making core)
+    - Policy Engine + Policy Administrator = **Policy Decision Point (PDP)**
+    - **Policy Enforcement Point (PEP)** that actually grants or denies access
+- **Implicit Trusted Zone** (the protected resources)
+Access decisions are made dynamically using risk-based policies and a trust algorithm. Supporting components include PKI, threat intelligence feeds, continuous diagnostics & mitigation, logging/SIEM, etc.
+
+**Other frameworks mentioned:**
+- Forrester’s Zero Trust Extended (ZTX) ecosystem (broader data flows across cloud, IoT, endpoints).
+- Gartner’s Continuous Adaptive Risk and Trust Assessment (CARTA).
+
+**Authors’ Enhanced Model (Figure 3)**  
+They extend the NIST model by explicitly incorporating:
+- Subject situation **and** endpoint situation.
+- An **Environment Monitor** that maintains rich situational awareness (device posture, threat intel, traffic patterns, etc.).
+- An Intrusion Detection/Filter gateway on the data path.
+- Clear mapping of their extended tenets onto the architecture.
+They also emphasize micro-segmentation of all objects and end-to-end securing of communications.
+
+### 3. Why is Zero Trust Needed / Implemented?
+
+Traditional perimeter-based security (“castle-and-moat”) and evaluation schemes (TCSEC, ITSEC, Common Criteria) have failed to deliver adequate confidence in modern, dynamic, highly interconnected environments.
+**Key drivers:*
+- Digital transformation, cloud, mobile workforce, and IoT have dissolved the traditional network perimeter.
+- Attackers routinely gain an initial foothold and then move laterally.
+- High-profile incidents (e.g., the 2010 Akamai attack) showed the need to separate application access from network access and limit the blast radius of any compromise.
+- Legacy trust models assume that “inside = trusted,” which is no longer valid.
+
+**Claimed benefits** (from Microsoft, Forescout, and others cited in the paper):
+- Better adaptation to complexity and mobility.
+- Improved visibility.
+- Reduced infrastructure cost and compliance effort.
+- Support for digital transformation.
+- Ability to secure unmanaged or constrained devices.
+- Dramatically reduced opportunity for lateral movement.
+
+### 4. When to Switch to Zero Trust?
+
+The paper discusses practical triggers and implementation guidance:
+**Common triggers:**
+- A major intrusion or security incident.
+- Replacement of network equipment that already supports Zero Trust features.
+- Business changes that expand the attack surface — especially large-scale remote/hybrid work, cloud adoption, or increased third-party access.
+
+**Implementation advice (drawing on Francis and others):**
+1. Clearly define the scope of the Zero Trust deployment.
+2. Inventory data assets, users, and physical/IT assets in scope.
+3. Map all data flows (client-to-server and server-to-server).
+4. Define fine-grained access policies.
+5. Micro-segment the network and place Policy Enforcement Points appropriately.
+6. Start with the most critical assets and expand iteratively.
+
+Several large organizations (Google BeyondCorp, Palo Alto Networks, GitLab, Akamai itself) have already adopted Zero Trust at scale, demonstrating that it is mature enough for production use

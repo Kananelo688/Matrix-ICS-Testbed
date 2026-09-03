@@ -498,77 +498,432 @@ All attack traffic, logs, and metric changes were successfully ingested by the E
 - **Scalability and performance claims unquantified**: No large-scale experiments, multi-tenant use, or resource-consumption benchmarks under sustained load.
 - **No defensive components**: Firewalls, IDS/IPS, or SIEM correlation rules are left for future work; the current platform is primarily an attack-and-collect environment.
 
-# Shore, Zeadally, Keshaariya(2021): Zero Trust: The What,How, Why, and When
 
-(This is not a testbed paper, its a paper on Zero Trust, I just need to understand it)
-### 1. What is Zero Trust?
+# 10. Gillen et al(2020): Design and Implementation of Full-Scale Industrial Control System Test Bed for Assessing Cyber-Security Defenses
 
-Zero Trust is a **data-centric security paradigm** based on the principle  
-**“Never trust, always verify.”**
-It rests on two fundamental assumptions:
-- External **and internal** threats are always present on the network.
-- Being “inside” the network (local/internal) does **not** make anything trusted. Lateral movement by attackers is a proven and common tactic.
-**Core concepts commonly associated with Zero Trust:**
-- **Just-in-Time Access (JITA)** + **Just-Enough Access (JEA)**: Authentication and authorization decisions are made at the moment of the request; only the minimum privileges needed for that specific request are granted, and only for the duration of the request.
-- Tokenization or encryption of sensitive data to shrink the attack surface.
-- **Adaptive / dynamic policies** that continuously recompute access decisions using as many contextual signals as possible (identity, device posture, location, time, threat intelligence, behavior, etc.).
-Zero Trust does **not** eliminate the need for assurance of the underlying security mechanisms themselves. It simply removes the assumption of ongoing trust after an initial check and forces continuous re-evaluation.
+### 1. Overall Summary
 
-The authors note that there is still no single universally agreed definition, but the above ideas form the practical core.
+The paper presents a design methodology and concrete implementation of a highly realistic ICS test bed intended for validating network-based cybersecurity defenses (especially intrusion detection systems). The authors argue that most existing test beds suffer from insufficient realism—relying on synthetic data, contrived scenarios, or pure simulation—which can produce misleading results when evaluating defenses destined for production environments. Their approach prioritizes **behavioral consistency** with a real target system: matching device behavior, network traffic characteristics (packet rates, sizes, protocol mix), vulnerabilities, failure modes, and safety constraints.
 
-### 2. How is Zero Trust Architected?
+They apply the methodology to build a near-duplicate of the industrial cooling system that supports Oak Ridge National Laboratory’s Summit supercomputer (then the world’s fastest open-science system). The test bed uses identical physical control hardware (Allen-Bradley ControlLogix PLC, HMI, historian, switches) while emulating the hundreds of sensors and actuators with Raspberry Pi clusters driven by replayed production historian data. Validation shows that network traffic and system state remain within ~1 % of the live production environment for most metrics. The work demonstrates that high-fidelity test beds are achievable without full physical plant replication and provides a quantifiable baseline for assessing how well results will transfer to production.
 
-**NIST SP 800-207 (2020)** is the primary reference. It defines seven original tenets and a logical architecture with three zones:
-- **Untrusted Zone** (users, devices, external networks)
-- **Policy Domain** (the decision-making core)
-    - Policy Engine + Policy Administrator = **Policy Decision Point (PDP)**
-    - **Policy Enforcement Point (PEP)** that actually grants or denies access
-- **Implicit Trusted Zone** (the protected resources)
-Access decisions are made dynamically using risk-based policies and a trust algorithm. Supporting components include PKI, threat intelligence feeds, continuous diagnostics & mitigation, logging/SIEM, etc.
+### 2. Testbed Description (by Layer)
 
-**Other frameworks mentioned:**
-- Forrester’s Zero Trust Extended (ZTX) ecosystem (broader data flows across cloud, IoT, endpoints).
-- Gartner’s Continuous Adaptive Risk and Trust Assessment (CARTA).
+**Control / Monitoring Layer (physical hardware)**
+- Exact duplicate of production equipment:  
+    – Allen-Bradley ControlLogix PLC with 34 I/O modules across six chassis, connected in an Ethernet/IP ring topology.  
+    – Allen-Bradley PanelView Plus HMI.  
+    – Yokogawa data-acquisition / historian unit.  
+    – Identical industrial Ethernet switches and 24 VDC power supplies.  
+    – Engineering workstation running Rockwell Studio 5000 for configuration and monitoring.
+- Production configuration files (HMI, historian, switches) were transferred directly; only minor ladder-logic changes were needed (removal of higher-level facility links and a redundant PLC that do not exist in the test bed).
 
-**Authors’ Enhanced Model (Figure 3)**  
-They extend the NIST model by explicitly incorporating:
-- Subject situation **and** endpoint situation.
-- An **Environment Monitor** that maintains rich situational awareness (device posture, threat intel, traffic patterns, etc.).
-- An Intrusion Detection/Filter gateway on the data path.
-- Clear mapping of their extended tenets onto the architecture.
-They also emphasize micro-segmentation of all objects and end-to-end securing of communications.
+**Sensor / Actuator Layer (emulated)**
+- > 500 sensors and actuators from the real cooling plant are emulated.
+- Implemented with >40 Raspberry Pis + ~200 custom daughter boards.
+- Signal types faithfully reproduced: 4–20 mA analog, 0/24 VDC digital, RTD resistance, and digital outputs via relays.
+- Each Pi handles a logical grouping of devices (e.g., one cooling tower) based on the mechanical drawings.
+- Variable-frequency drives (VFDs) that use Ethernet/IP (CIP) in production are emulated in software on the Pis, matching traffic rate, handshakes, and protocol behavior.
+- Independent local displays on each Pi group provide “ground-truth” physical state, independent of the OT network—useful when the HMI is under attack or showing false data.
 
-### 3. Why is Zero Trust Needed / Implemented?
+**Data / Replay Layer**
+- 30 days of production historian data are parsed, split by sensor group, and replayed at 2 Hz.
+- Missing intermediate points are interpolated.
+- A centralized, network-isolated synchronization agent keeps all Raspberry Pi emulators time-aligned.
+- This approach avoids complex physics models while still driving the real PLC with realistic, time-varying signals.
 
-Traditional perimeter-based security (“castle-and-moat”) and evaluation schemes (TCSEC, ITSEC, Common Criteria) have failed to deliver adequate confidence in modern, dynamic, highly interconnected environments.
-**Key drivers:*
-- Digital transformation, cloud, mobile workforce, and IoT have dissolved the traditional network perimeter.
-- Attackers routinely gain an initial foothold and then move laterally.
-- High-profile incidents (e.g., the 2010 Akamai attack) showed the need to separate application access from network access and limit the blast radius of any compromise.
-- Legacy trust models assume that “inside = trusted,” which is no longer valid.
+**Network Layer**
 
-**Claimed benefits** (from Microsoft, Forescout, and others cited in the paper):
-- Better adaptation to complexity and mobility.
-- Improved visibility.
-- Reduced infrastructure cost and compliance effort.
-- Support for digital transformation.
-- Ability to secure unmanaged or constrained devices.
-- Dramatically reduced opportunity for lateral movement.
+- Ethernet/IP (CIP) is the primary industrial protocol.
+- Topology and device addressing mirror the production cooling-system network.
+- Full packet captures from both environments were used for validation.
 
-### 4. When to Switch to Zero Trust?
+**Overall Architecture**  
+The test bed is logically split into the control/monitoring side (real hardware) and the plant side (emulated sensors/actuators). Layout follows the original mechanical drawings. Safety is preserved because no high-power or high-pressure equipment is present; complete device or system failure can be induced without physical hazard.
 
-The paper discusses practical triggers and implementation guidance:
-**Common triggers:**
-- A major intrusion or security incident.
-- Replacement of network equipment that already supports Zero Trust features.
-- Business changes that expand the attack surface — especially large-scale remote/hybrid work, cloud adoption, or increased third-party access.
+### 4. Experimental Results
 
-**Implementation advice (drawing on Francis and others):**
-1. Clearly define the scope of the Zero Trust deployment.
-2. Inventory data assets, users, and physical/IT assets in scope.
-3. Map all data flows (client-to-server and server-to-server).
-4. Define fine-grained access policies.
-5. Micro-segment the network and place Policy Enforcement Points appropriately.
-6. Start with the most critical assets and expand iteratively.
+The paper focuses on **validation of behavioral consistency** rather than attack campaigns or IDS evaluations.
+**Validation method**
+1. **Configuration transfer** – Production configuration files loaded successfully onto identical hardware; the test bed remained operational.
+2. **State consistency** – During replay of the 30-day historian data set, the PLC showed no unexpected communication faults and the HMI displayed only the alerts expected from the replayed data.
+3. **Network-traffic comparison** – Full PCAP captures (six-hour windows) from production and test bed were compared on a per-hour basis.
 
-Several large organizations (Google BeyondCorp, Palo Alto Networks, GitLab, Akamai itself) have already adopted Zero Trust at scale, demonstrating that it is mature enough for production use
+**Key quantitative findings (Table I)**
+
+- Packet count, data volume, average packet size, packet rate, Ethernet frames/bytes, IP frames/bytes, UDP frames/bytes all differed by <1 %.
+- TCP frames/bytes showed larger differences (~24–29 %) caused by a minor behavioral discrepancy in the VFD emulator (production periodically resets a long-lived TCP connection; the emulator keeps it open).
+- Because TCP constitutes <2 % of total traffic (Table II), the overall behavioral impact is negligible.
+- Hour-to-hour coefficient of variation within each environment was extremely low (<0.03 %), confirming traffic stability.
+
+The authors conclude that the testbed achieves the required degree of behavioral consistency for evaluating network-based defenses and that results obtained on it can be expected to transfer to the real Summit cooling system with high confidence.
+
+### Key ICS Concepts Raised / Defined in the Paper
+
+- **Behavioral consistency** – The central design goal: the test environment must match the target production system in steady-state device behavior, responses to stimuli, network characteristics (packet rate, size, protocol distribution), and failure modes so that security evaluations remain valid.
+- **Ethernet-based threat surface of ICS** – The expanded attack surface created when traditionally isolated industrial networks adopt Ethernet/IP and TCP/IP technologies.
+- **Network realism** – Requirement that packet counts, sizes, rates, and protocol mixes in the test bed closely match production (validated via full PCAP comparison).
+- **Vulnerability realism** – Physical devices often contain implementation-specific vulnerabilities (e.g., PLC crashes under simple scans) that pure simulation or virtualization may miss or invent; therefore critical devices should be physical when the goal is vulnerability assessment.
+- **Achievable failure** – The test bed must be able to reproduce realistic device and cascading process failures (including second- and third-order effects on safety and equipment) so that the impact of a missed detection can be properly understood.
+- **Safety vs. realism trade-off** – Complete system failure, including potential physical destruction of components, must still be performable without endangering people or facilities; this constraint influences which devices are physical versus emulated.
+- **Historian-driven emulation** – Using real production time-series data (rather than pure physics models) as the stimulus for sensors/actuators to achieve high fidelity at lower computational cost.
+- **Ground-truth independent of HMI** – Local, non-OT displays of true sensor/actuator state so that loss-of-view or HMI-spoofing attacks remain observable by experimenters.
+- **Transferability of assessment results** – Quantifiable measurement of the delta between test-bed and production traffic/state so that confidence intervals can be placed on how well findings will apply in the real environment.
+
+# 11. Gholap, Yeola, Singh(2025): On Developing a Hybrid Cyber-Physical Testbed for Cyber-Secure Industrial Control System
+
+### 1. Overall Summary
+
+The paper presents a low-cost hybrid cyber-physical testbed designed for cybersecurity research on industrial control systems (ICS), with a focus on generating realistic attack datasets for intrusion detection. Motivated by the expanding attack surface of modern ICS/IoT/CPS systems that rely on open, unencrypted protocols such as Modbus-TCP, the authors construct an economical prototype that combines a physical chemical-process plant with a virtual factory environment. The physical side uses three tanks for liquid mixing/titration controlled by a Codesys-programmed Raspberry Pi acting as a pseudo-PLC; the virtual side leverages Factory I/O for 3-D industry-grade sensor/actuator simulation, enabling true hardware-in-the-loop (HIL) operation.
+
+Communication occurs primarily over Modbus-TCP between an AdvancedHMI operator interface, the Raspberry-Pi controller, and an Ignition SCADA historian (via OPC-UA). The authors demonstrate two concrete attacks—Metasploit-based man-in-the-middle data-modification and aircrack-ng de-authentication—capture labelled network traffic with Wireshark, and train a Random-Forest IDS that achieves 100 % accuracy on the (admittedly skewed) dataset. Future work aims to scale the platform with multiple pseudo-PLCs, integrate the physical and virtual plants more tightly, expand protocol support, and validate the Raspberry-Pi controller against commercial PLCs.
+
+Limited: (from reading the paper), emulate PLC with raspberry pi? Must reason why emulating PLCs with raspberrypi does produce testbed with high fedility ( not at all)!
+
+### 2. Testbed Description (by Layer)
+
+**Level-0 – Physical System**
+- Three-tank chemical-process prototype: left tank (liquid A), right tank (liquid B), middle mixing/titration tank.
+- Liquids are pumped according to operator set-points entered on the HMI; the mixture supports processes such as titration.
+- Sensors and actuators are physical (pumps, level sensors, valves).
+- Controlled by a Codesys-based Raspberry Pi functioning as a pseudo-PLC.
+
+**Level-1 – Control System**
+- Raspberry Pi running Codesys runtime (IEC 61131-3 compliant).  What difference does this has to actual PLC?
+- Programmed in ladder logic (or other IEC languages) via the Codesys IDE.
+- Exposes Modbus-TCP server modules so that higher-level systems can read process values and write set-points/commands.
+- Acts as the real-time controller for both the physical tanks and (in the expanded setup) the virtual Factory I/O plant.
+*I wanna try to have this kinda of control later in the my time. (I feel like its nice and less costy than byung actual PLC. but what is its fedility? what compromize does it maake? compare to actual PLC, how is this one different?)*
+
+**Level-2 – SCADA / HMI**
+- Operator interface built with AdvancedHMI (Visual Studio plugin).
+- Operators enter desired liquid volumes; set-points are written to the Raspberry Pi over Modbus-TCP.
+- Ignition SCADA (Inductive Automation) provides a tag historian; process tags are transferred from the pseudo-PLC via OPC-UA. ( I similarly used Ignition Scada, for Historian and Raspberry Pi, might be a good paper to side when position or reasoning for the choice of  SCADA System)
+- **Network traffic is captured with Wireshark for dataset generation.**
+
+**Virtual Factory Extension (Hybrid / HIL mode)**
+
+- Factory I/O (RealGames) supplies a 3-D virtual plant with industry-grade sensors, actuators and conveyors.
+- Virtual I/O points are mapped to the same Codesys Raspberry-Pi controller over Modbus-TCP, creating a true hardware-in-the-loop loop.
+- Enables rapid creation of additional attack scenarios and heterogeneous traffic without extra physical hardware.
+- Planned multi-PLC expansion will further increase device and protocol diversity.
+
+**Network**
+- Primary protocol: Modbus-TCP (unencrypted).
+- Secondary: OPC-UA for historian communication.
+- Optional Wi-Fi link used for remote HMI/PLC access (the target of the de-authentication attack).
+- Attacker tools: Metasploit V6 (MITM data modification) and aircrack-ng (de-authentication).
+
+*Our testbed is also kinda planned be this hybrid. Thsi paper successfully demontrates that is possible  have a aphysical testbed along side Virtual Factory I/O. The beauty of having a virtual additionally to physicall is that it allows one to be able to easily select different types of industries  to emulate.* We also will have Factory I/O Emulation!
+### 4. Experimental Results
+
+Two attacks were fully executed and used to generate labelled datasets.
+
+**1. MITM Data-Modification Attack (Modbus-TCP)**
+
+- Tool: Metasploit V6.
+- Method: Intercept and alter sensor/actuator values or commands while the plant operates normally.
+- Data capture: Wireshark packet traces labelled by known attacker vs. benign IP addresses.
+- IDS result: A supervised Random-Forest classifier trained on this dataset achieved **100 % accuracy**. The authors note the result is inflated by a highly skewed class distribution (far more benign than attack packets) and plan to re-balance the dataset with additional virtual-factory scenarios.
+
+**2. De-authentication Attack (Wi-Fi / DoS)**
+
+- Tool: aircrack-ng suite.
+- Method:  
+    – Monitor nearby Wi-Fi traffic to obtain MAC addresses of the access point and the Raspberry-Pi client.  
+    – Inject forged de-authentication frames (128 packets: 64 to AP, 64 to client) spoofing the client MAC.
+- Observed effects:  
+    – Raspberry-Pi pseudo-PLC is forcibly disconnected.  
+    – HMI displays a connection-error message and loses live process visibility (Figure 5).  
+    – The Pi re-initiates the WPA2 four-way handshake; the attacker captures the handshake and successfully cracks the network password via dictionary attack (Figure 7).
+- Packet evidence: Wireshark shows de-authentication frames with frame-control field 0xc000 and the corresponding source/destination MACs (Figure 6).
+
+Additional attack types (replay, SYN flood, PLC program modification) are described as feasible on the platform but were not yet executed in the reported experiments. The authors state they are in the process of mounting further MITM/replay scenarios on the combined physical + Factory I/O setup to produce a more balanced, multi-device dataset.
+
+*I am thinking of performing the same attacks on the our testbed. I will use tcp flooding for Denial of Service (different from them because our testbed does not have wireless connectivity). and I will use may metsploit as well to perform man-in-the-middle attack, trying to quatify that our testbed can be compromisa, and diaming diagrams do refelct those unusual system patterns. This will be a very novel kind-a of thing to add.*
+### Key ICS Concepts Raised / Defined in the Paper
+
+- **Hybrid / Hardware-in-the-Loop (HIL) testbed** – Combination of a low-cost physical plant (tanks, pumps) with a high-fidelity virtual factory (Factory I/O) controlled by the same real-time pseudo-PLC, allowing realistic traffic generation at reduced cost.
+- **Pseudo-PLC** – A Codesys-programmed Raspberry Pi that fully emulates industrial PLC behaviour (IEC 61131-3 languages, Modbus-TCP server) and can drive both physical and virtual I/O.
+- **Open/unencrypted ICS protocols as primary attack surface** – Emphasis on Modbus-TCP (and similar legacy protocols such as IEC 61850, CAN) that lack authentication and encryption, making MITM, replay and command-injection trivial.
+- **De-authentication attack on ICS Wi-Fi links** – Exploitation of unencrypted IEEE 802.11 de-authentication frames to force disconnection of PLC/HMI clients, capture WPA2 handshakes, and subsequently crack passwords for deeper network access.
+- **Labelled attack datasets for supervised IDS** – Systematic capture of network traffic under known attack conditions (Metasploit, aircrack-ng) to train machine-learning detectors (here Random Forest).
+- **Heterogeneity challenge** – ICS/IoT environments contain devices and protocols from many OEMs; testbeds must therefore support multiple protocols and device types to produce representative traffic.
+- **SCADA historian via OPC-UA** – Separation of real-time control (Modbus-TCP) from long-term data logging (OPC-UA to Ignition), reflecting modern layered ICS architectures.
+- **Cost-effective academic research platform** – Explicit design goal of avoiding expensive commercial PLCs, sensors and full-scale plants while still achieving usable fidelity for cybersecurity experimentation.
+
+# 12.  Calder, Ahmed, Nagaraja (2023) : SWaP: A Water Process Testbed for ICS Security Research
+
+### 1. Overall Summary of the Paper
+
+The paper presents the **Security Water Processing (SWaP)** testbed, a low-cost, modular Industrial Control System (ICS) designed for cybersecurity research and training. Developed jointly by researchers from the University of Strathclyde and Newcastle University, SWaP aims to address the scarcity of realistic, publicly available datasets that incorporate physical process data alongside network communication traffic. The primary goals of the testbed are to evaluate **industrial protocol security,** **develop and evaluate defense technologies**, **analyze side-channel defensive measures**, and **share curated attack and normal-operation datasets** with the broader research community.
+
+SWaP replicates a three-stage water processing plant featuring a combination of *heterogeneous Programmable Logic Controllers (PLCs)*, sensor interfaces, motorized valves, DC pumps, and network routing equipment. Unlike existing expensive or purely simulated testbeds, SWaP is built using affordable off-the-shelf and DIY components, avoiding vendor lock-in and allowing easy repair or modification. *The authors executed multiple physical and network-based cyber-attacks to record high-fidelity anomalous process and network traffic data.* **Ultimately, the paper outlines future expansions, including remote operational access, integrated Human-Machine Interfaces (HMIs), and additional processing stages like filtration**.
+
+### 2. Testbed Description Layer by Layer
+
+The SWaP testbed is organized across three primary operational and architectural layers:
+#### Process Layer (Physical Infrastructure)
+- **Water Processing Architecture:** Consists of three stages, each centered around a 30-liter water tank ($T_1$, $T_2$, $T_3$) interconnected via PVC piping with quick-connect fittings.
+    
+    - **Stage 1 ($T_1$):** Represents secondary storage for treated water. It features two motorized valves ($V_1$, $V_2$) allowing it to supply water independently to Stage 2 or Stage 3.
+    - **Stage 2 ($T_2$):** Represents primary storage, equipped with one motorized valve ($V_3$) controlling outflow.
+    - **Stage 3 ($T_3$):** Represents consumer units. Because water is not consumed in the lab setting, Stage 3 recycles water back to Stage 1 via valve $V_4$ and pump $P_3$.
+- **Safety Isolation:** To mitigate electrical and water hazards in a lab environment, high-voltage AC usage is restricted strictly to a single PLC and an isolated power supply housed in a metal enclosure. All pumps and valves operate on 12V or 24V DC.
+#### Field Layer (Sensors, Actuators, & Sensor Interfaces)
+
+- **Instrumentation:** Each tank is equipped with an ultrasonic water level sensor ($L_1, L_2, L_3$) mounted at the top, along with inline flow sensors ($F_1, F_2, F_3$) on outflow lines.
+- **Actuators:** DC motorized valves ($V_1–V_4$) and DC pumps ($P_1–P_3$) manage physical fluid transfers
+- **Digital Sensor Interfaces:** USB-powered Arduino boards act as sensor interfaces at each tank stage. They sample raw physical readings and send simple UDP payloads (containing device IDs and calculated values) over Wi-Fi to a central Control Unit.
+
+==*Must be included in paper: The concept of having a low-cost IoT device is not new. This paper use arduino boards as interfaces between interfaces that read physical reading and send them as simple UDP payload over WiFi to central procesing unit. Our testbed include RaspberryPi and not only just an interface but a micro-segmentation, allowing our testbed t be use for understanding of zero trust principles in ICS evironment. Its acts a multi-protocol aggregation, and many other useful thing. This is a very critical argument to make in the paper!*==
+#### Control & Network Layer
+
+- **Heterogeneous PLCs:**
+    - **Siemens S7-1200 (PLC2):** Runs on 230V AC (providing 24V DC output) and controls Stages 2 and 3. Communicates using the **S7-comm** protocol.
+    - **Allen-Bradley Micro820 (PLC1):** Powered by 24V DC and controls Stage 1. Communicates using **EtherNet/IP**.
+
+==*These are are the same set of PLC families we have in our testbed. However, ours comess with additional Schneider PLC, featuring PLCs fromm tree major vendor driving industry today. Our seimens operate communicate with OPC UA to the middleware, instead of s7comm. our testbed has more protocol hetegeniety, and diversity. Our PLCs communicate with each other to share process. do thiers do so?, but in terms of protcol heneterogeniety and diversity, this is the closest testbed to ours*==
+
+- **Control Unit & Inter-PLC Communication:** A Raspberry Pi acts as a central Control Unit, receiving UDP sensor packets from Arduinos via a Wi-Fi Access Point and directly writing the sensor values into PLC memory spaces.
+==*Oops. my previous comment didn't factor this in, this makesthis testbed even the closest to our work! Extremely important to compare and contrast our testbed to this one!,* ==
+- **Historian & Monitoring Workstation:**
+    - An **InfluxDB** Historian database regularly polls both PLCs to record sensor states and pin data with timestamps every second.
+    - A central switch links the Workstation, PLCs, Control Unit, and Historian.
+    - The switch features a **mirror port** to capture full, uncorrupted network layer traffic.
+    - The Workstation provides internet access for administration but is logically isolated to avoid bridging the testbed network to external networks.
+### 3. Experimental Results & Conducted Attacks
+
+The experimental evaluation focused on executing normal operational runs as well as designing and executing various cyber and physical attack scenarios to collect multi-modal datasets (process data + network traces).
+#### Dataset Generation Setup
+- **Normal Operation Baseline:** Recorded three 6-hour continuous runs of normal process execution without faults or anomalies to establish baseline operational behavior.
+- **Attacks Execution:** Several attack scenarios were run on the physical testbed to induce damage (such as tank flooding or pump burnout through dry running) or cause process disruptions.
+#### Summary of Executed Attacks
+- **Sensor Pause:** An attacker captures a valid sensor reading and continuously retransmits that static value to the PLCs, preventing them from receiving real-time physical updates.
+- **Water Theft:** Water is physically removed from a tank during operation using an external hose and pump. This introduces physical anomalies, disrupts system balance, and can cause a Denial of Service (DoS) due to water shortages.
+- **Real Sensor Fault:** The physical Arduino interface is powered off. Unlike Sensor Pause, this results in dropped network packets and causes PLC sensor variables to freeze without receiving new updates.
+- **State Machine DoS:** Takes advantage of system "debouncing" logic (where water levels must remain low for several seconds before a state change triggers). Because the Historian polls PLCs only once per second, an attacker transmits fake high-level values between polling intervals. This resets the state timer continuously without being recorded in the Historian database, though the attack is visible in network PCAP files.
+- **Stealthy Fake Sensor Inject:** Measures average rate of change in water levels and injects fake sensor readings that reflect only a small fraction of the actual change, leading to tank overflow/flooding while appearing normal.
+- **State Aware Stealthy Inject:** A variant of the stealthy sensor injection attack that targets specific operational states in the system state machine rather than using generic delays.
+
+### 4. Key ICS Concepts Extracted from the Paper
+
+- **Cyber-Physical Systems (CPS):** Systems integrating computational algorithms, networking infrastructure, and physical processes.
+- **Industrial Control System (ICS):** A subset of CPS used to monitor and autonomously control physical processes across critical infrastructures such as manufacturing, water processing, and power grids.
+- **Programmable Logic Controller (PLC):** Solid-state industrial computers designed to execute control logic by monitoring inputs from sensors and driving outputs to physical actuators.
+- **Historian:** A specialized time-series database (in this paper, InfluxDB) used to log, process, and archive operational data and sensor readings from control hardware with timestamps.
+- **Industrial Protocols:** Specialized network protocols utilized for industrial control communication; specifically **S7-comm** (Siemens) and **EtherNet/IP** (Allen-Bradley).
+- **Process Layer vs. Network Layer Data:**
+    - _Process Layer Data:_ Physical state observations including flow rates, water levels, and actuator states.
+    - _Network Layer Data:_ Raw network communications (packet captures) exchanged between sensors, PLCs, control units, and workstations.
+- **Debouncing Logic:** Algorithmic delays implemented in control software to prevent physical liquid sloshing from accidentally triggering premature state transitions.
+- **Stealthy Cyber-Physical Attack:** An attack where manipulated sensor data is crafted to mimic valid physical dynamics, misleading control software or human operators while the physical process is driven into a hazardous state.
+
+# 13. Cuorvo et al (2024): Securing Industrial Systems: A Testbed for Cyber-Defense Evaluation and Data Collection
+
+- Historically Industrial Control Systems employed protocols and standard that were developed without security in mind.
+- The advent of IIoT has result in the these legacy system being exposed to the internet and coorporate networks,which made ICS more vunerable to cuber attacks.
+- Authors build a hybrid/virtual digital twin that mimics a physical Microgrid testbed known as EPIC.
+### 1. Overall Summary of the Paper
+
+This paper introduces a hybrid/virtual digital twin that emulates the physical **Electric Power Interactive Control (EPIC)** microgrid testbed, designed to evaluate Software-Defined Networking (SDN)-based cyber-defense strategies and generate datasets for Industrial Control System (ICS) security research. Developed by researchers at the University of Naples Federico II, the framework addresses the limitations of existing testbeds by enabling flexible, user-driven integration of physical, virtual machine (VM), and containerized industrial components interconnected via Open vSwitch (OvS) instances managed by an SDN controller.
+
+The testbed models an Alternating Current (AC) Microgrid hierarchical control structure comprising six subnets: SCADA, Control, Generation, Microgrid, Transmission, and Smart Home. To maximize resource efficiency and accessibility, components can be deployed as lightweight Docker containers (ideal for protocol/application vulnerability testing) or VirtualBox VMs (for system/kernel vulnerability testing) on commercial hardware, or tied to physical ABB PLCs for hardware-in-the-loop validation. A specialized data collection tool suite captures raw network traffic (converted to JSON), host performance metrics (CPU/RAM usage), PLC/IED status logs, OS event logs (via Elastic Beats), and executed attack commands (via CyberRange-Collector), uploading all data to an ELK stack for analysis.
+
+The authors demonstrate the testbed's utility through an end-to-end attack and defense experiment. An attacker executes a reconnaissance ping scan, launches an ARP poisoning Man-in-the-Middle (MitM) attack to sniff unencrypted Modbus/TCP traffic, and performs on-the-fly packet modification to tamper with SCADA control commands and status responses. In response, an SDN-based defense mechanism utilizing Source Address Validation (SAV) and Dynamic ARP Inspection (DAI) detects the malicious packets and activates a Moving Target Defense (MTD) Redundancy strategy. This dynamic policy modifies VLAN assignments to isolate the attacker and seamlessly redirect malicious traffic to a parallel Digital Twin Replica, preserving operational continuity while allowing defenders to study attacker behavior.
+
+### 2. Testbed Description Layer by Layer
+
+The proposed testbed mimics the EPIC microgrid's control hierarchy across physical, virtual, and network architecture layers:
+#### Physical & Execution Layer
+- **Hardware Setup:** Comprises an industrial switch (Perle IDS-409-1SFP supporting 802.1Q VLANs), four physical ABB PLCs (PM554-TP-ETH), a Raspberry Pi 4 (4 GB RAM), and an HP laptop (Intel i5-1135G7, 8 GB RAM).
+- **Hybrid Deployment Options:**
+    - **Containers:** Deployed via Docker engine on the Raspberry Pi (or host PC) for lightweight emulation of PLCs, IEDs, and control nodes.
+    - **Virtual Machines:** Deployed via VirtualBox Hypervisor on the HP laptop for nodes requiring complex operating systems or kernel-level vulnerabilities (e.g., Windows 7 SCADA Workstation).
+    - **Physical Hardware:** Hardware PLCs are used when proprietary vendor implementation behavior or hardware-specific vulnerabilities need testing.
+    - **Fully Virtualized Mode:** Physical hardware can be swapped out entirely for containerized equivalents, enabling execution on standard laptops.
+#### Process & Application Control Layer
+
+The testbed models the hierarchical control structure of the EPIC microgrid across six segmented subnets:
+- **SCADA Subnet (`192.168.72.96/28`, VLAN 7):** Hosts a Windows 7 SCADA Workstation (`192.168.72.98`) running a Node-RED web-based HMI for operator management, alongside an SMB server intentionally exposed to the EternalBlue vulnerability.
+- **Control Subnet (`192.168.72.64/28`, VLAN 2):** Contains a containerized General PLC (`192.168.72.66`) running a PyModbus Modbus/TCP server and a CGI web-HMI vulnerable to ShellShock. It translates SCADA commands and coordinates zone PLCs.
+- **Generation Subnet (`192.168.72.32/28`, VLAN 3):** Contains the Generation PLC (`192.168.72.55`) and G-IED 1 (`192.168.72.50`) managing main grid power input.
+- **Transmission Subnet (`192.168.72.48/28`, VLAN 4):** Contains the Transmission PLC (`192.168.72.61`) and T-IEDs 1–3 (`192.168.72.56–60`) isolating generation components from loads.
+- **Microgrid Subnet (`192.168.72.16/28`, VLAN 6):** Contains the MicroGrid PLC (`192.168.72.29`) and M-IEDs 1–2 (`192.168.72.18–19`) controlling local power generation components.
+- **Smart Home Subnet (`192.168.72.0/28`, VLAN 5):** Contains the Smart Home PLC (`192.168.72.43`) and S-IEDs 1–4 (`192.168.72.34–37`) managing electrical loads.
+- **Protocol & Process Emulation:** Communication relies on unencrypted **Modbus/TCP**. Physical electrical processes (circuit breakers, generators, loads) are excluded from direct physics simulation to focus exclusively on industrial application and network attack surfaces.
+#### Network Architecture & SDN Layer
+
+- **Virtual Switches & Gateways:** Interconnections are implemented entirely using **Open vSwitch (OvS)** software switches divided into:
+    
+    - _Virtual Switches:_ Provide local intra-subnet switching and VLAN tagging.
+        
+    - _Virtual Gateways (Main Gateway & Control Gateway):_ Provide inter-subnet routing based strictly on directly connected interface routes, preventing direct communication between SCADA and field-level subnets except via the Control Subnet.
+        
+- **Inter-component Trunking:** Open vSwitch instances connect to host physical NICs via trunk links, while internal containers and VMs attach using Virtual Ethernet (`veth`) interface pairs set to access mode with assigned VLAN IDs.
+    
+- **SDN Controller:** Hosted within an isolated Management VLAN (VLAN 50) and accessible via weak SSH credentials (`admin:admin`). It controls all OvS instances, enforces access control policies, and dynamically reconfigures flow entries.
+    
+
+### 3. Experimental Results & Conducted Attacks
+
+The authors conducted proof-of-concept experiments demonstrating an attack scenario against unencrypted Modbus protocols and evaluating an automated SDN defense strategy.
+
+#### Executed Attack Workflow
+
+1. **Reconnaissance:** An attacker node (`192.168.72.97`) inside the SCADA subnet executes an Nmap ping scan (`nmap -sP 192.168.72.0/24`) to discover accessible target hosts, identifying the General PLC (`192.168.72.66`), SCADA Workstation (`192.168.72.98`), and Control Gateway interfaces (`192.168.72.78/110`).
+    
+2. **ARP Poisoning / Man-in-the-Middle (MitM):** Using `arpspoof`, the attacker sends gratuitous ARP messages to poison the ARP caches of both the SCADA Workstation and the Control Gateway interface.
+    
+3. **Traffic Sniffing & Inspection:** The attacker uses Wireshark to intercept and view unencrypted Modbus/TCP traffic passing between the SCADA HMI and the General PLC.
+    
+4. **On-the-Fly Data Tampering:** The attacker intercepts a Modbus `Write Single Coil` command from the SCADA HMI (changing coil state from `1` to `0`) and alters the corresponding `Read Coil` response returned to SCADA so it falsely reflects `1`, blinding the operator to the true system state.
+    
+
+#### Experimental Defense & Findings (MTD Redundancy)
+
+- **Anomaly Detection Stage:** The isolated SDN controller continuously inspects traffic on OvS switches using **Source Address Validation (SAV)** and **Dynamic ARP Inspection (DAI)**. Because industrial networks utilize static IP configurations, DAI detects invalid MAC-to-IP bindings caused by ARP spoofing.
+    
+- **Mitigation & Redirection:** Upon detection, the SDN controller triggers an MTD Redundancy strategy:
+    
+    - A pre-configured replica of the virtualized digital twin running on a separate machine is linked to the physical switch via trunk channels.
+        
+    - The controller dynamically alters the VLAN IDs on the OvS access ports to isolate the attacker node and redirect all malicious traffic into the isolated Digital Twin Replica.
+        
+- **Findings:** The experiment confirmed that SDN-driven dynamic VLAN re-tagging successfully blocks ARP poisoning attacks, isolates compromised hosts, prevents disruption to legitimate microgrid control traffic, and diverts attackers into a honeypot-like environment for threat intelligence gathering.
+    
+
+### 4. Key ICS Concepts Extracted from the Paper
+
+- **Industrial Control System (ICS):** A collective term for command and control systems (including PLCs, IEDs, and SCADA) used to monitor and operate physical processes across critical infrastructure sectors.
+    
+- **Digital Twin:** A software or virtual representation of a physical system or process, enabling low-cost, risk-free simulation, vulnerability analysis, and security evaluation without interrupting live physical operations.
+    
+- **Microgrid:** A localized electrical grid group consisting of distributed energy sources (generators, solar panels, batteries) and loads that can operate synchronously with or independently from the main utility grid.
+    
+- **Intelligent Electronic Device (IED):** Microprocessor-based controllers used in power systems to monitor equipment, manage circuit breakers (CBs), perform protective relaying, and exchange status data with PLCs.
+    
+- **Supervisory Control and Data Acquisition (SCADA):** A high-level industrial control system architecture that collects process data, provides a graphical Human-Machine Interface (HMI) for operators, and issues supervisory commands to field devices.
+    
+- **Software-Defined Networking (SDN):** A networking paradigm that separates the control plane (path determination) from the data plane (forwarding), enabling centralized, programmable management of network switches.
+    
+- **Open vSwitch (OvS):** An open-source, multilayer virtual software switch designed to enable network automation and support standard management interfaces/protocols (e.g., OpenFlow) within virtualized environments.
+    
+- **Modbus/TCP:** An unencrypted, stateless application-layer industrial protocol widely used for serial and Ethernet communication between master (SCADA/PLC) and slave devices (IEDs/PLCs).
+    
+- **Moving Target Defense (MTD):** A proactive defense paradigm that dynamically alters system configurations or network parameters over time to increase uncertainty and complexity for attackers.
+    
+- **Dynamic ARP Inspection (DAI) & Source Address Validation (SAV):** Network defense techniques used to prevent Man-in-the-Middle attacks by validating IP-to-MAC address bindings and source IP address authenticity against established static configurations.
+# 14. Chang, Li, &Liu(2023): Cyber-Physical Security Testbed for Dam Control System
+
+### 1. Overall Summary of the Paper
+
+This paper presents a **Cyber-Physical Security Testbed for Dam Control Systems**, developed by researchers at National Cheng Kung University in Taiwan. Recognizing that critical infrastructure faces rising cyber-physical threats—demonstrated by real-world incidents such as the 2013 Bowman Avenue Dam cyberattack and severe weather failures like the 2018 Laos Dam collapse—the authors developed a testbed designed to emulate dam operations. The system incorporates hardware components salvaged from a retired dam system in Taiwan to preserve high operational and environmental fidelity.
+
+The testbed models the physical and network behaviors of a dam equipped with seven spillways. By collecting data from both Information Technology (IT) and Operational Technology (OT) segments, the system generates comprehensive datasets containing normal operational states as well as negative samples representing non-standard or improper gate controls. The overarching objective of the project is to provide realistic multi-layer datasets to support machine learning and neural network models for anomaly detection, cyberattack identification, and threat analysis in dam control environments.
+### 2. Testbed Description Layer by Layer
+
+The testbed emulates a dam control system by integrating physical hardware, microcontrollers, programmable logic controllers, and network switches divided into distinct IT and OT layers:
+#### Physical & Process Layer (Dam Environment)
+
+- **Spillway Layout:** Simulates seven dam spillway gates (Gate1​ to Gate7​).
+    - **Gates 1 & 2:** Represent regular discharge spillways used for daily water regulation.
+    - **Gates 3–7:** Represent backup spillways that are raised simultaneously by a single PLC when emergency discharge is required.
+- **Physical Gate Emulation:** Arduino MEGA 2560 boards emulate the Digital Input/Digital Output (DI/DO) values associated with the physical position and operational state of each gate.
+- **Control Modes:** Gate operations can be driven via two distinct paths:
+
+    1. _On-site Direct Control:_ Serial communication linked to Arduino boards mimicking manual button presses on physical control panels by workers.
+
+    2. _Remote PLC Control:_ Digital outputs driven by PLCs receiving network commands from the HMI.
+#### Operational Technology (OT) Layer
+
+- **Programmable Logic Controllers (PLCs):** Three Schneider TWDLCAE40DRF PLCs execute control commands for the spillway gates.
+
+    - **PLC1:** Controls Gate1​.
+
+    - **PLC2:** Controls Gate2​.
+    - **PLC3:** Controls the backup spillways (Gate3​ through Gate7​) simultaneously.
+
+- **OT Switching Infrastructure:** A industrial Cisco IE 4000 switch (Switch 1) interconnects the PLCs, the Human-Machine Interface (HMI), and an OT monitoring node.
+
+- **OT Packet Capture:** A dedicated Windows 10 PC running Wireshark (Wireshark 1) connects to Switch 1 to log all local Modbus TCP control traffic exchanged between the HMI and the PLCs.
+
+#### Information Technology (IT) Layer
+
+- **Human-Machine Interface (HMI):** Serves as the operator workstation, regularly querying the connected PLCs for gateway status updates via Modbus TCP packets and issuing gate control commands.
+    
+    PDF
+    
+- **Database / Historian:** A Windows 10 PC running Microsoft SQL Server logs all historical operational data, water levels, and gate status messages sent from the HMI.
+    
+    PDF
+    
+- **IT Switching Infrastructure:** An HP 1810-8G switch (Switch 2) connects the HMI, the MS SQL database server, and an IT packet capture host.
+    
+    PDF
+    
+- **IT Packet Capture:** A second dedicated Windows 10 PC running Wireshark (Wireshark 2) taps into Switch 2 to record network traffic passing within the IT domain.
+    
+    PDF
+    
+
+### 3. Experimental Results
+
+The paper focuses on the **architectural design and physical implementation** of the testbed; it **does not present experimental benchmark results, machine learning classification accuracy, or evaluated detection models**.
+
+PDF
+
+#### Conducted Experiments & Data Collection Methodology
+
+- **Data Sources:** Inflow data fed into the simulation is sourced from historical hydrological records of a retired dam system in Taiwan.
+    
+    PDF
+    
+- **Normal vs. Non-Normal Operations:**
+    
+    - _Positive (Normal) Samples:_ Generated from standard gate operational routines maintaining safe water levels for agricultural and domestic supply.
+        
+        PDF
+        
+    - _Negative (Anomalous) Samples:_ Generated by executing irregular gate control commands that create non-standard gate statuses, potentially causing artificially high or low water levels.
+        
+        PDF
+        
+- **Future Work:** The authors note that dataset collection, public dataset releases, and the integration of physical and cyberattack scenarios (such as Man-in-the-Middle attacks) are planned for future phases of the project.
+    
+    PDF
+    
+
+### 4. Key ICS Concepts Extracted from the Paper
+
+- **Cyber-Physical Systems (CPS):** Systems that integrate computational algorithms, networking infrastructure, and physical assets, enabling real-time monitoring and control of physical processes.
+    
+    PDF
+    
+- **Industrial Control System (ICS):** An umbrella term covering instrumentation, control hardware, networks, and supervisory systems (e.g., SCADA, PLCs, HMIs) used to operate industrial facilities.
+    
+    PDF
+    
+- **Supervisory Control and Data Acquisition (SCADA):** High-level system architecture for gathering real-time process data, viewing operational status, and issuing supervisory commands over long distances.
+    
+    PDF
+    
+- **Human-Machine Interface (HMI):** Software and hardware interface that displays process variables to human operators and transmits their manual or automated input commands to lower-level controllers.
+    
+    PDF
+    
+- **Programmable Logic Controller (PLC):** Industrial digital computers designed to control physical actuators (e.g., dam spillway gates) based on sensor inputs and control logic.
+    
+    PDF
+    
+- **Modbus TCP:** An open industrial communications protocol operating at the application layer over standard TCP/IP networks, used in this testbed to exchange gate status updates and control commands between the HMI and PLCs.
+    
+    PDF
+    
+- **IT/OT Convergence:** The integration of Information Technology (business, databases, corporate enterprise networks) with Operational Technology (physical controllers, sensors, actuators, fieldbuses).
+    
+    PDF
+    
+- **Man-in-the-Middle (MitM) Attack:** A cyberattack where an adversary secretly intercepts and alters communications between two systems (e.g., between an HMI and a PLC), allowing the attacker to spoof control commands or supply false status data to database servers.
+    
+    PDF

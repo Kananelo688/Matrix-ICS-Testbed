@@ -1,0 +1,239 @@
+Starting Nmap 7.98 ( https://nmap.org ) at 2026-09-03 11:15 +0200
+Nmap scan report for 192.168.50.10
+Host is up (0.0078s latency).
+
+PORT      STATE  SERVICE      VERSION
+80/tcp    closed http
+102/tcp   open   iso-tsap     Siemens S7 PLC
+| s7-info: 
+|   Module: 6ES7 214-1AG40-0XB0 
+|   Basic Hardware: 6ES7 214-1AG40-0XB0 
+|_  Version: 4.5.1
+443/tcp   closed https
+502/tcp   closed mbap
+4840/tcp  open   opcua-tcp?
+44818/tcp closed EtherNetIP-2
+MAC Address: 4C:E7:05:65:E3:D3 (Siemens Industrial Automation Products, Chengdu)
+Device type: remote management|general purpose|specialized
+Running (JUST GUESSING): Dell embedded (86%), OpenBSD 3.X|4.X (86%), Rockwell Automation embedded (85%), Inova embedded (85%)
+OS CPE: cpe:/h:dell:remote_access_card:4 cpe:/o:openbsd:openbsd:3 cpe:/o:openbsd:openbsd:4 cpe:/h:rockwellautomation:1761-net-eni
+Aggressive OS guesses: Dell Remote Access Controller 4 (DRAC 4) (86%), Dell Embedded Remote Access (ERA) Controller 3.38 or 4/I (86%), OpenBSD 3.9 - 4.4 (86%), OpenBSD 4.3 (86%), OpenBSD 4.2 (85%), Rockwell Automation 1761-NET-ENI Ethernet-to-RS-232-C interface module (85%), Inova OnTime Clock Version 1.2.P (85%)
+No exact OS matches for host (test conditions non-ideal).
+Network Distance: 1 hop
+Service Info: Device: specialized
+
+Nmap scan report for 192.168.50.20
+Host is up (0.0016s latency).
+
+PORT      STATE  SERVICE       VERSION
+80/tcp    closed http
+102/tcp   closed iso-tsap
+443/tcp   closed https
+502/tcp   open   modbus        Modbus TCP
+4840/tcp  closed opcua-tcp
+44818/tcp open   EtherNet-IP-2
+| enip-info: 
+|   type: Programmable Logic Controller (14)
+|   vendor: Rockwell Automation/Allen-Bradley (1)
+|   productName: 2080-LC20-20QWB
+|   serialNumber: 0x60f13679
+|   productCode: 180
+|   revision: 12.11
+|   status: 0x0034
+|   state: 0x03
+|_  deviceIp: 192.168.50.20
+MAC Address: 5C:88:16:9E:79:4A (Rockwell Automation)
+Aggressive OS guesses: Ricoh Aficio SP C210SF printer (92%), Brother NC-130h print server (91%), Brother HL-2070N printer (91%), Brother HL-5070N printer (91%), Brother MFC-7820N printer (91%), Frontier Silicon internet radio (91%), Novatel MiFi 2200 3G WAP (91%), Sony FWD-40LX2F display card (90%), Sony Bravia V5500-series TV (89%), Sony Bravia W5500-series TV (89%)
+No exact OS matches for host (test conditions non-ideal).
+Network Distance: 1 hop
+
+Nmap scan report for 192.168.50.40
+Host is up (0.0016s latency).
+
+PORT      STATE  SERVICE      VERSION
+80/tcp    closed http
+102/tcp   closed iso-tsap
+443/tcp   closed https
+502/tcp   closed mbap
+4840/tcp  closed opcua-tcp
+44818/tcp closed EtherNetIP-2
+MAC Address: B8:27:EB:60:86:7D (Raspberry Pi Foundation)
+Too many fingerprints match this host to give specific OS details
+Network Distance: 1 hop
+
+Nmap scan report for 192.168.50.50
+Host is up (0.0023s latency).
+
+PORT      STATE  SERVICE      VERSION
+80/tcp    closed http
+102/tcp   closed iso-tsap
+443/tcp   closed https
+502/tcp   open   modbus       Modbus TCP
+4840/tcp  closed opcua-tcp
+44818/tcp closed EtherNetIP-2
+MAC Address: 00:00:54:6A:B1:FB (Schneider Electric)
+Device type: storage-misc
+Running (JUST GUESSING): Sun embedded (87%)
+OS CPE: cpe:/h:sun:storedge_3510_fc_array
+Aggressive OS guesses: Sun StorEdge 3510 FC storage array (87%)
+No exact OS matches for host (test conditions non-ideal).
+Network Distance: 1 hop
+
+Stats: 0:03:53 elapsed; 508 hosts completed (5 up), 1 undergoing Script Scan
+NSE Timing: About 0.00% done
+Nmap scan report for 192.168.50.2
+Host is up (0.00017s latency).
+
+PORT      STATE  SERVICE      VERSION
+80/tcp    open   http         Microsoft IIS httpd 10.0
+|_http-server-header: Microsoft-IIS/10.0
+|_http-title: IIS Windows
+| http-methods: 
+|_  Potentially risky methods: TRACE
+102/tcp   open   iso-tsap?
+443/tcp   open   https?
+| tls-alpn: 
+|   h2
+|_  http/1.1
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=muzi
+| Subject Alternative Name: DNS:MUZI, URI:https://MUZI, IP Address:169.254.129.150, IP Address:137.158.127.27
+| Not valid before: 2025-01-15T00:00:00
+|_Not valid after:  2026-01-16T00:00:00
+502/tcp   closed mbap
+4840/tcp  open   opcua-tcp?
+44818/tcp closed EtherNetIP-2
+No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=7.98%E=4%D=9/3%OT=80%CT=502%CU=39320%PV=Y%DS=0%DC=L%G=Y%TM=6A993B
+OS:A1%P=i686-pc-windows-windows)SEQ(SP=100%GCD=1%ISR=109%TI=I%CI=I%II=I%SS=
+OS:S%TS=A)SEQ(SP=102%GCD=1%ISR=105%TI=I%CI=I%II=I%SS=S%TS=A)SEQ(SP=107%GCD=
+OS:1%ISR=105%TI=I%CI=I%II=I%SS=S%TS=A)SEQ(SP=FE%GCD=1%ISR=10D%TI=I%CI=I%II=
+OS:I%SS=S%TS=A)SEQ(SP=FF%GCD=1%ISR=10F%TI=I%CI=I%II=I%SS=S%TS=A)OPS(O1=MFFD
+OS:7NW8ST11%O2=MFFD7NW8ST11%O3=MFFD7NW8NNT11%O4=MFFD7NW8ST11%O5=MFFD7NW8ST1
+OS:1%O6=MFFD7ST11)WIN(W1=FFFF%W2=FFFF%W3=FFFF%W4=FFFF%W5=FFFF%W6=FFFF)ECN(R
+OS:=Y%DF=Y%T=80%W=FFFF%O=MFFD7NW8NNS%CC=N%Q=)T1(R=Y%DF=Y%T=80%S=O%A=S+%F=AS
+OS:%RD=0%Q=)T2(R=Y%DF=Y%T=80%W=0%S=Z%A=S%F=AR%O=%RD=0%Q=)T3(R=Y%DF=Y%T=80%W
+OS:=0%S=Z%A=O%F=AR%O=%RD=0%Q=)T4(R=Y%DF=Y%T=80%W=0%S=A%A=O%F=R%O=%RD=0%Q=)T
+OS:5(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=80%W=0%S=A%A=
+OS:O%F=R%O=%RD=0%Q=)T7(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1(R=Y%DF
+OS:=N%T=80%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI=N%T=80
+OS:%CD=Z)
+
+Network Distance: 0 hops
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Nmap scan report for 192.168.100.1
+Host is up (0.00012s latency).
+
+PORT      STATE  SERVICE      VERSION
+80/tcp    open   http         Microsoft IIS httpd 10.0
+|_http-server-header: Microsoft-IIS/10.0
+|_http-title: IIS Windows
+| http-methods: 
+|_  Potentially risky methods: TRACE
+102/tcp   open   iso-tsap?
+443/tcp   open   https?
+| tls-alpn: 
+|   h2
+|_  http/1.1
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=muzi
+| Subject Alternative Name: DNS:MUZI, URI:https://MUZI, IP Address:169.254.129.150, IP Address:137.158.127.27
+| Not valid before: 2025-01-15T00:00:00
+|_Not valid after:  2026-01-16T00:00:00
+502/tcp   closed mbap
+4840/tcp  open   opcua-tcp?
+44818/tcp closed EtherNetIP-2
+No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=7.98%E=4%D=9/3%OT=80%CT=502%CU=34045%PV=Y%DS=0%DC=L%G=Y%TM=6A993B
+OS:BC%P=i686-pc-windows-windows)SEQ(SP=101%GCD=1%ISR=10D%TI=I%CI=I%II=I%SS=
+OS:S%TS=A)SEQ(SP=102%GCD=1%ISR=10B%TI=I%CI=I%II=I%SS=S%TS=A)SEQ(SP=103%GCD=
+OS:1%ISR=108%TI=I%CI=I%II=I%SS=S%TS=A)SEQ(SP=104%GCD=1%ISR=10B%TI=I%CI=I%II
+OS:=I%SS=S%TS=A)SEQ(SP=106%GCD=1%ISR=109%TI=I%CI=I%II=I%SS=S%TS=A)OPS(O1=MF
+OS:FD7NW8ST11%O2=MFFD7NW8ST11%O3=MFFD7NW8NNT11%O4=MFFD7NW8ST11%O5=MFFD7NW8S
+OS:T11%O6=MFFD7ST11)WIN(W1=FFFF%W2=FFFF%W3=FFFF%W4=FFFF%W5=FFFF%W6=FFFF)ECN
+OS:(R=Y%DF=Y%T=80%W=FFFF%O=MFFD7NW8NNS%CC=N%Q=)T1(R=Y%DF=Y%T=80%S=O%A=S+%F=
+OS:AS%RD=0%Q=)T2(R=Y%DF=Y%T=80%W=0%S=Z%A=S%F=AR%O=%RD=0%Q=)T3(R=Y%DF=Y%T=80
+OS:%W=0%S=Z%A=O%F=AR%O=%RD=0%Q=)T4(R=Y%DF=Y%T=80%W=0%S=A%A=O%F=R%O=%RD=0%Q=
+OS:)T5(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=80%W=0%S=A%
+OS:A=O%F=R%O=%RD=0%Q=)T7(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1(R=Y%
+OS:DF=N%T=80%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI=N%T=
+OS:80%CD=Z)
+
+Network Distance: 0 hops
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Nmap scan report for 192.168.100.2
+Host is up (0.00028s latency).
+
+PORT      STATE  SERVICE      VERSION
+80/tcp    open   http         Microsoft IIS httpd 10.0
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/10.0
+|_http-title: IIS Windows
+102/tcp   open   iso-tsap?
+443/tcp   open   https?
+| ssl-cert: Subject: commonName=muzi
+| Subject Alternative Name: DNS:MUZI, URI:https://MUZI, IP Address:169.254.129.150, IP Address:137.158.127.27
+| Not valid before: 2025-01-15T00:00:00
+|_Not valid after:  2026-01-16T00:00:00
+|_ssl-date: TLS randomness does not represent time
+| tls-alpn: 
+|   h2
+|_  http/1.1
+502/tcp   closed mbap
+4840/tcp  open   opcua-tcp?
+44818/tcp closed EtherNetIP-2
+No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=7.98%E=4%D=9/3%OT=80%CT=502%CU=32113%PV=Y%DS=0%DC=L%G=Y%TM=6A993B
+OS:D8%P=i686-pc-windows-windows)SEQ(SP=103%GCD=1%ISR=107%TI=I%CI=I%II=I%SS=
+OS:S%TS=A)SEQ(SP=103%GCD=1%ISR=109%TI=I%CI=I%II=I%SS=S%TS=A)SEQ(SP=103%GCD=
+OS:1%ISR=10A%TI=I%CI=I%II=I%SS=S%TS=A)SEQ(SP=105%GCD=1%ISR=108%TI=I%CI=I%II
+OS:=I%SS=S%TS=A)SEQ(SP=106%GCD=1%ISR=106%TI=I%CI=I%II=I%SS=S%TS=A)OPS(O1=MF
+OS:FD7NW8ST11%O2=MFFD7NW8ST11%O3=MFFD7NW8NNT11%O4=MFFD7NW8ST11%O5=MFFD7NW8S
+OS:T11%O6=MFFD7ST11)WIN(W1=FFFF%W2=FFFF%W3=FFFF%W4=FFFF%W5=FFFF%W6=FFFF)ECN
+OS:(R=Y%DF=Y%T=80%W=FFFF%O=MFFD7NW8NNS%CC=N%Q=)T1(R=Y%DF=Y%T=80%S=O%A=S+%F=
+OS:AS%RD=0%Q=)T2(R=Y%DF=Y%T=80%W=0%S=Z%A=S%F=AR%O=%RD=0%Q=)T3(R=Y%DF=Y%T=80
+OS:%W=0%S=Z%A=O%F=AR%O=%RD=0%Q=)T4(R=Y%DF=Y%T=80%W=0%S=A%A=O%F=R%O=%RD=0%Q=
+OS:)T5(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=80%W=0%S=A%
+OS:A=O%F=R%O=%RD=0%Q=)T7(R=Y%DF=Y%T=80%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1(R=Y%
+OS:DF=N%T=80%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI=N%T=
+OS:80%CD=Z)
+
+Network Distance: 0 hops
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Nmap scan report for 192.168.100.10
+Host is up (0.0014s latency).
+
+PORT      STATE  SERVICE      VERSION
+80/tcp    closed http
+102/tcp   closed iso-tsap
+443/tcp   closed https
+502/tcp   closed mbap
+4840/tcp  open   opcua-tcp?
+44818/tcp closed EtherNetIP-2
+MAC Address: B8:27:EB:60:86:7D (Raspberry Pi Foundation)
+No exact OS matches for host (If you know what OS is running on it, see https://nmap.org/submit/ ).
+TCP/IP fingerprint:
+OS:SCAN(V=7.98%E=4%D=9/3%OT=4840%CT=80%CU=39359%PV=Y%DS=1%DC=D%G=Y%M=B827EB
+OS:%TM=6A993C72%P=i686-pc-windows-windows)SEQ(SP=101%GCD=1%ISR=10D%TI=Z%CI=
+OS:Z%II=I%TS=21)SEQ(SP=102%GCD=1%ISR=108%TI=Z%CI=Z%II=I%TS=21)SEQ(SP=104%GC
+OS:D=1%ISR=10C%TI=Z%CI=Z%II=I%TS=21)SEQ(SP=106%GCD=1%ISR=109%TI=Z%CI=Z%II=I
+OS:%TS=21)OPS(O1=M5B4ST11NW7%O2=M5B4ST11NW7%O3=M5B4NNT11NW7%O4=M5B4ST11NW7%
+OS:O5=M5B4ST11NW7%O6=M5B4ST11)WIN(W1=FE88%W2=FE88%W3=FE88%W4=FE88%W5=FE88%W
+OS:6=FE88)ECN(R=Y%DF=Y%T=40%W=FAF0%O=M5B4NNSNW7%CC=Y%Q=)T1(R=Y%DF=Y%T=40%S=
+OS:O%A=S+%F=AS%RD=0%Q=)T2(R=N)T3(R=N)T4(R=Y%DF=Y%T=40%W=0%S=A%A=Z%F=R%O=%RD
+OS:=0%Q=)T5(R=Y%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)T6(R=Y%DF=Y%T=40%W=0
+OS:%S=A%A=Z%F=R%O=%RD=0%Q=)T7(R=Y%DF=Y%T=40%W=0%S=Z%A=S+%F=AR%O=%RD=0%Q=)U1
+OS:(R=Y%DF=N%T=40%IPL=164%UN=0%RIPL=G%RID=G%RIPCK=G%RUCK=G%RUD=G)IE(R=Y%DFI
+OS:=N%T=40%CD=S)
+
+Network Distance: 1 hop
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 512 IP addresses (8 hosts up) scanned in 443.45 seconds

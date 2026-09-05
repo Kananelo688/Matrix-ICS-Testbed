@@ -56,7 +56,7 @@ An S-shaped curve indicates a much broader distribution (high jitter).
 ### 1.2.2 Detailed Methodology of how Data was Collected for this Specific Results
 
 
-### 1.2.3 Results and brief intepretation
+### 1.2.3 Results and brief interpretation
 
 
 ![[fig_matrix_latency_ecdf.png]]
@@ -122,3 +122,50 @@ Plotting Bytes/packet to quantify the Packet Overhead of each individual protoco
 **Key Architectural Insights for Paper**
 - **Bandwidth Isolation:** The dual-homed middleware proxy effectively acts as a traffic-shaping boundary, bounding field-device throughput and shielding upper-level industrial networks from high-rate PLC polling loops.
 - **Framing Efficiency Trade-Off:** While OPC UA provides rich object modeling and security features, its transmission cost is roughly **2.4 times greater per packet** than raw Modbus TCP (157.4 B/pkt vs. 64.2 B/pkt). This tradeoff must be factored in when designing bandwidth-constrained or low-power wireless ICS links.
+
+# 1.Attacks
+We carried few attacks to demonstrate that the network and testbed is attackable and suitable for research.
+
+## 1.1 ARP Spoofing
+With performs MiTM attacks sniffing on the network traffic across different boundaries in the Testebed.
+
+For instance, to sniff on S7-1200 traffic, we used the following commands in bettercap to execute ARP Spoofing:
+
+```
+net.probe on
+set arp.spoof.targets 192.168.50.10
+set net.sniff.local true
+set net.sniff.output s7_cap.pcap
+set net.sniff.verbose true
+set net.sniff.verbose true
+set arp.spoof.fullduplex true
+set arp.spoof.internal true
+arp.spoof on
+net.sniff on
+```
+Once in the middle, we could sniff on the packet to and from this target. All Inter-PLC ModbusTCP and screenshoot shows S7-1200 traffic sniffed on attacker machine (kali).
+
+![[Pasted image 20260905094217.png]]
+
+## 1.2 Man-in-the-Middle Attack
+With attacker now intercepting the traffic from and to S7-1200. We took this even further and executed masquerading attack on the control-layer Inter-PLC communication link. To execute this attack, we use `metsploitframework`, so "fool" Allen-Bradley and pretend to send legitimate handoff-signals as it they were from Siemens. We then captured timing of system events to show that the attack successfully executed even though there were never a "finished workpiece" that needed to be picked by micro820. The screenshots below show the normal timing event of Transfer Unit under normal operation(operating correctly and correct hand-off signals from Siemens) and when under attack ( Masqueraded attack).
+(past screenshots here)
+
+We also run another masquerading attack, in this case, fooling the T221. we acted as legitimate Micro820, and write faked hand-off signal (**"work piece placed on the conveyor"**) into the transfer unit. The timing diagrams we captured to show the deviation of usual event from actual events
+
+We expected the conveyor not to rotate, even in this case because it has its won second point of check: a light-barrier that gets interrupted once the workpiece is placed on the belt. So the condition "start transport" is actually dual-based: HANDOFF_SIGNAL **AND** LIGHT_BARRIER_INTERRUPTED. But this doesn't stop attacker from writing a fake "light-barrier" interrupted attack to the coil to which the light barrier is connected to.
+
+## 1.3 Denial-of-Service Attack (DoS)
+We attempted to perform Denial of Service by flooding the network interfaces of the controllers using the command:
+`nping --tcp -p 502,44818,102,4840 --rate 1000 --count 0 192.168.50.10 192.168.50.20 192.168.50.50` and we could set the extreme delays in signal hand-off between S7-S1200 and Allen-Bradley micro820. or from micro820 to T221. AT some point, the hand-off signal didn't happen at all, rendering the system completely unavailable.(total failure)
+
+
+## 1. 4 Attacks on OPC UA links
+We also ran several known OPCUA CVEs on our opcua network links ( S7-1200 to Middleware Raspberrypi and from Middleware to Scada.) Here, the primary focus was to determine is DoS is possible, if targeted on our custom-built `OPC UA server,`  or proprietary `S7-1200 Server`.
+
+These attacks were run using very useful open-source framework available in the following [this](https://github.com/claroty/opcua-exploit-framework.git) repository by  **Claroty Team82**
+### 1.4.1 DoS Attack on Custom Middleware OPCUA Server.
+
+
+### 1.4.2 DoS attack on Proprietary S7-1200 OPC UA Server
+

@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Testbeds in Literature.md",
+                "file": "Zero Trust in OT Systems.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Testbeds in Literature"
+              "title": "Zero Trust in OT Systems"
             }
           },
           {
@@ -35,8 +35,7 @@
               "title": "Zero Trust in OT Systems"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -98,8 +97,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "right": {
     "id": "9051f044fa708453",
@@ -204,7 +202,7 @@
       "bases:Create new base": false
     }
   },
-  "active": "1936131dc7f75287",
+  "active": "08c84da521526be8",
   "lastOpenFiles": [
     "Testbeds in Literature.md",
     "Zero Trust in OT Systems.md",

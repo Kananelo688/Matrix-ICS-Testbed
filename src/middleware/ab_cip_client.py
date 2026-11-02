@@ -43,11 +43,16 @@ Author : Kananelo Chabeli
 import asyncio
 import logging
 from datetime import datetime
+import threading
 from pycomm3 import LogixDriver
 import ctypes
 
-# Configuration
+# Notes why threading.Lock() is used:
+#  - pycomm3 is synchronous and not thread-safe; it uses a single socket for
+#    all CIP requests. If multiple threads call read/write simultaneously (as will be the case during running of the latency measurements),
+#    the socket can get confused and return garbage or fail. So we with lock to serialize all pycomm3 calls.   
 
+plc_lock = threading.Lock()
 PLC_IP          = "192.168.50.20"
 
 POLL_INTERVAL   = 0.5   # seconds between polling cycles
@@ -132,6 +137,15 @@ _plc: LogixDriver | None = None
 # Blocking pycomm3 calls, run off the event loop via asyncio.to_thread()
 
 def _blocking_connect(ip: str) -> LogixDriver:
+    """
+    Connect to the Micro820 via EtherNet/IP (CIP) and return a LogixDriver instance. Raises ConnectionError if the connection fails.
+
+    Args:
+        ip : IP address of the Micro820 (e.g. "192.168.50
+        
+    Returns:
+        LogixDriver instance (must be closed with plc.close() when done)    
+    """
     plc = LogixDriver(ip)
     plc.open()
     if not plc.connected:
@@ -140,11 +154,48 @@ def _blocking_connect(ip: str) -> LogixDriver:
 
 
 def _blocking_read_all(plc: LogixDriver, ccw_names: list[str]):
-    return plc.read(*ccw_names)
+    """
+    Batch-read multiple Global Variables from the Micro820. Wraps the synchronous pycomm3 read() call 
+    in a thread so it can be called from the asyncio event loop.
+    
+    Args:
+        plc       : LogixDriver instance (must be connected)
+        ccw_names : list of Global Variable names in CCW (e.g. ["_IO_EM_DO_04", "_IO_EM_DO_05"])
+    Returns:
+        dict of read objects returned by pycomm3.read() for each tag, in the same order as ccw_names. Each read object has .value and .error attributes.
+    """
+    with plc_lock:
+       return plc.read(*ccw_names)
 
+
+def _blocking_read(plc: LogixDriver, ccw_name: str):
+    """
+    Read a single Global Variable from the Micro820. Wraps the synchronous pycomm3 read() call in a thread so it can be called from the asyncio event loop.
+    
+    Args:
+        plc      : LogixDriver instance (must be connected)
+        ccw_name : Global Variable name in CCW (e.g. "_IO_EM_DO_04")
+    Returns:
+        read object returned by pycomm3.read(), with .value and .error attributes.
+    """
+    
+    with plc_lock:
+        return plc.read(ccw_name)
 
 def _blocking_write(plc: LogixDriver, ccw_name: str, value):
-    return plc.write((ccw_name, value))
+    """
+    Write a single Global Variable on the Micro820. Wraps the synchronous pycomm3 write() call in a thread so it can be called from the asyncio event loop.
+    
+    Args:
+        plc      : LogixDriver instance (must be connected)
+        ccw_name : Global Variable name in CCW (e.g. "_IO_EM_DO_04")
+        value    : value to write (type must match the CCW tag's declared data type)
+
+    Returns:
+        True if write succeeded, False otherwise.
+    """
+    with plc_lock:
+        return plc.write((ccw_name, value))
 
 
 def _blocking_close(plc: LogixDriver):
@@ -161,10 +212,8 @@ async def _poll(plc: LogixDriver):
     ccw_names = list(TAG_MAP.keys())
 
     try:
-        results = await asyncio.wait_for(
-            asyncio.to_thread(_blocking_read_all, plc, ccw_names),
-            timeout=POLL_TIMEOUT
-        )
+        # pycomm3 is synchronous, so run the blocking read in a thread and timeout if it takes too long
+        results = await asyncio.wait_for(asyncio.to_thread(_blocking_read_all, plc, ccw_names),timeout=POLL_TIMEOUT)
         state["_connected"] = True
     except (asyncio.TimeoutError, Exception) as exc:
         log.warning(f"Batch read failed: {exc}")
@@ -193,7 +242,9 @@ async def _poll(plc: LogixDriver):
 # Public API
 async def write_tag(internal_tag: str, value) -> bool:
     """
-    Write a single Global Variable on the Micro820.
+    Write a single Global Variable on the Micro820. It wraps the synchronous pycomm3 write()
+    call in an asyncio.to_thread() so it can be called from the asyncio event loop.
+    
     Used by main.py / opcua_server.py to relay commands (SCADA actuator writes
     and handoff signals from other controllers).
 
@@ -219,10 +270,7 @@ async def write_tag(internal_tag: str, value) -> bool:
         return False
 
     try:
-        result = await asyncio.wait_for(
-            asyncio.to_thread(_blocking_write, _plc, ccw_name, value),
-            timeout=POLL_TIMEOUT
-        )
+        result = await asyncio.wait_for(asyncio.to_thread(_blocking_write, _plc, ccw_name, value),timeout=POLL_TIMEOUT)
         if result.error: #type:ignore
             log.warning(f"write_tag({ccw_name}, {value}) → error: {result.error}") #type:ignore
             return False
@@ -234,6 +282,7 @@ async def write_tag(internal_tag: str, value) -> bool:
         return False
 
 
+
 async def benchmark_read(ccw_name: str = "SchneiderModbusHandshake"):
     """
     Fresh CIP read of a single tag using the existing connection.
@@ -242,7 +291,7 @@ async def benchmark_read(ccw_name: str = "SchneiderModbusHandshake"):
     if _plc is None or not _plc.connected:
         raise RuntimeError("AB CIP client is not connected")
 
-    result = await asyncio.to_thread(_plc.read, ccw_name)
+    result = await asyncio.to_thread(_blocking_read, _plc, ccw_name)
     if result.error: #type:ignore
         raise RuntimeError(f"AB CIP read failed: {result.error}")   #type:ignore
 
@@ -278,7 +327,7 @@ async def verify_write(internal_tag, expected, retries: int = 3, delay: float = 
         return False
     for _ in range(retries):
         try:
-            result = await asyncio.to_thread(_plc.read, ccw_name)
+            result = await asyncio.to_thread(_blocking_read, _plc, ccw_name)
             if (not result.error) and result.value == expected:  # type:ignore
                 return True
         except Exception:

@@ -11,6 +11,16 @@
             "id": "08c84da521526be8",
             "type": "leaf",
             "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          },
+          {
+            "id": "1936131dc7f75287",
+            "type": "leaf",
+            "state": {
               "type": "markdown",
               "state": {
                 "file": "Testbeds in Literature.md",
@@ -20,22 +30,9 @@
               "icon": "lucide-file",
               "title": "Testbeds in Literature"
             }
-          },
-          {
-            "id": "1936131dc7f75287",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Zero Trust in OT Systems.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Zero Trust in OT Systems"
-            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -202,12 +199,18 @@
       "bases:Create new base": false
     }
   },
-  "active": "08c84da521526be8",
+  "active": "1936131dc7f75287",
   "lastOpenFiles": [
+    "Untitled.base",
+    "Zero Trust in OT Systems.md",
+    "Untitled 2.canvas",
+    "2026-09-08.md",
+    "Untitled 1.canvas",
+    "Untitled.canvas",
+    "Untitled.md",
+    "Testbeds in Literature.md",
     "Literature/Galdar-2023-SWaP_A_Water_Process_Testbed_for_ICS_Security_Research.pdf",
     "Literature/Caldar-2023-SWaP_A_Water_Process_Testbed_for_ICS_Security_Research.pdf",
-    "Zero Trust in OT Systems.md",
-    "Testbeds in Literature.md",
     "Literature/A_Zero_Trust_Architecture_for_Critical_Operational_Technology_Systems.pdf",
     "Literature/Unconfirmed 86303.crdownload",
     "Literature/Security_Gateway_for_Automated_Micro-Segmentation_and_VPN_Encryption_in_Industrial_Legacy_Systems.pdf",

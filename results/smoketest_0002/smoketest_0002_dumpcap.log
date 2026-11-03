@@ -1,0 +1,4 @@
+Capturing on 'Matrix-Monitoring-NIC'
+File: results\smoketest_0002\smoketest_0002.pcap
+Packets captured: 25206
+Packets received/dropped on interface 'Matrix-Monitoring-NIC': 25206/0 (pcap:0/dumpcap:0/flushed:0/ps_ifdrop:0) (100.0%)

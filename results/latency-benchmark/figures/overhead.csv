@@ -1,0 +1,4 @@
+plc,direct_median,indirect_median,delta_median,direct_p95,indirect_p95,delta_p95
+siemens,50.633,64.594,13.961,69.749,96.953,27.204
+ab,5.917,17.529,11.612,7.714,32.973,25.259
+tm221,2.547,17.205,14.658,3.116,18.055,14.939

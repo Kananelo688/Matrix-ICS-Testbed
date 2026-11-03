@@ -56,7 +56,7 @@ An S-shaped curve indicates a much broader distribution (high jitter).
 ### 1.2.2 Detailed Methodology of how Data was Collected for this Specific Results
 
 
-### 1.2.3 Results and brief intepretation
+### 1.2.3 Results and brief interpretation
 
 
 ![[fig_matrix_latency_ecdf.png]]
@@ -88,12 +88,9 @@ Usefulness of Throughput Metrics in the Testbed
 
 **Protocol Framing Overhead:** Comparing `Bytes_per_Sec` against `Packets_per_Sec` quantifies the encapsulation overhead of different industrial protocols. Compact binary protocols (Modbus TCP) generate high packet rates with small payload sizes, whereas feature-rich protocols (OPC UA) carry significant header overhead for session handling and structured metadata serialization.
 
-**Middleware Proxy Bottleneck Identification:** In a micro-segmented architecture where middleware acts as an edge gateway, throughput metrics reveal processing, routing, and queuing limits. Comparing throughput across direct PLC-to-PLC paths against middleware-mediated paths highlights network bottlenecks introduced by proxying.
-
-**Security & Anomaly Detection Baseline:** Industrial Control System (ICS) networks typically exhibit stable, cyclic traffic patterns. Establishing normal byte and packet rate baselines provides a deterministic threshold to detect security anomalies such as Denial-of-Service (DoS) flooding, unauthorized network scanning, or rogue PLC command injection.
-
 ### 1.3.1 Results
 Tabular summary of the dataset:
+
 
 | Communication Boundary                 | Protocol    | Mean (B/s)  | Peak (B/s) | Mean (p/s) | Peak (p/s) | Avg Packet Size (B/pkt) |
 | -------------------------------------- | ----------- | ----------- | ---------- | ---------- | ---------- | ----------------------- |
@@ -103,9 +100,6 @@ Tabular summary of the dataset:
 | Middleware <-> TM221 (Modbus TCP)      | Modbus TCP  | 943.190000  | 1028.0     | 14.680000  | 16.0       | 64.227044               |
 | Ignition SCADA <-> Middleware (OPC UA) | OPC UA      | 906.028333  | 1592.0     | 5.778333   | 10.0       | 157.403349              |
 | Middleware <-> S7-1200 (OPC UA)        | OPC UA      | 849.778333  | 1913.0     | 7.275000   | 16.0       | 116.288447              |
-
-Wisker and Box Plot
-![[throughput_bytes_per_sec_boxplot.png]]
 
 
 Plotting Bytes/packet to quantify the Packet Overhead of each individual protocol and different boundaries
@@ -122,3 +116,72 @@ Plotting Bytes/packet to quantify the Packet Overhead of each individual protoco
 **Key Architectural Insights for Paper**
 - **Bandwidth Isolation:** The dual-homed middleware proxy effectively acts as a traffic-shaping boundary, bounding field-device throughput and shielding upper-level industrial networks from high-rate PLC polling loops.
 - **Framing Efficiency Trade-Off:** While OPC UA provides rich object modeling and security features, its transmission cost is roughly **2.4 times greater per packet** than raw Modbus TCP (157.4 B/pkt vs. 64.2 B/pkt). This tradeoff must be factored in when designing bandwidth-constrained or low-power wireless ICS links.
+
+# 1.Attacks
+We carried few attacks to demonstrate that the network and testbed is attackable and suitable for research.
+
+## 1.1 ARP Spoofing
+With performs MiTM attacks sniffing on the network traffic across different boundaries in the Testebed.
+
+For instance, to sniff on S7-1200 traffic, we used the following commands in bettercap to execute ARP Spoofing:
+
+```
+net.probe on
+set arp.spoof.targets 192.168.50.10
+set net.sniff.local true
+set net.sniff.output s7_cap.pcap
+set net.sniff.verbose true
+set net.sniff.verbose true
+set arp.spoof.fullduplex true
+set arp.spoof.internal true
+arp.spoof on
+net.sniff on
+```
+Once in the middle, we could sniff on the packet to and from this target. All Inter-PLC ModbusTCP and screenshoot shows S7-1200 traffic sniffed on attacker machine (kali).
+
+![[Pasted image 20260905094217.png]]
+
+## 1.2 Man-in-the-Middle Attack
+With attacker now intercepting the traffic from and to S7-1200. We took this even further and executed masquerading attack on the control-layer Inter-PLC communication link. To execute this attack, we use `metsploitframework`, so "fool" Allen-Bradley and pretend to send legitimate handoff-signals as it they were from Siemens. We then captured timing of system events to show that the attack successfully executed even though there were never a "finished workpiece" that needed to be picked by micro820. The screenshots below show the normal timing event of Transfer Unit under normal operation(operating correctly and correct hand-off signals from Siemens) and when under attack ( Masqueraded attack).
+(past screenshots here)
+
+We also run another masquerading attack, in this case, fooling the T221. we acted as legitimate Micro820, and write faked hand-off signal (**"work piece placed on the conveyor"**) into the transfer unit. The timing diagrams we captured to show the deviation of usual event from actual events
+
+We expected the conveyor not to rotate, even in this case because it has its won second point of check: a light-barrier that gets interrupted once the actual physical workpiece is placed on the belt. So the condition "start transport" is actually dual-based: HANDOFF_SIGNAL **AND** LIGHT_BARRIER_INTERRUPTED. But this doesn't stop attacker from writing a fake "light-barrier" interrupted attack to the coil to which the light barrier is connected to.
+
+## 1.3 Denial-of-Service Attack (DoS)
+We attempted to perform Denial of Service by flooding the network interfaces of the controllers using the command:
+`nping --tcp -p 502,44818,102,4840 --rate 1000 --count 0 192.168.50.10 192.168.50.20 192.168.50.50` and we could set the extreme delays in signal hand-off between S7-S1200 and Allen-Bradley micro820. or from micro820 to T221. AT some point, the hand-off signal didn't happen at all, rendering the system completely unavailable.(total failure)
+
+**Worth Noting in the paper**
+
+The during execution of this attack, something unexpected happened( when rate was set to 10000). Siemens PLCs corrupt its input bus, and ended up reading in inputs in very unpredictable manner. It would mark the input as HIGH even when the input is physically disconnected from the PLC. This is a bezzare behavior that is perhaps attributed to by the high current drawing of the PLC during heavy traffic flooding (maybe, need amore literature-backed concrete reason for this finding).
+
+Takeaway: even though this Testbed is a play ground, some attacks are too dangerous to carry on the PLCs , like flooding them with packets because their network protocol stack is  not meant to be used like that. The damage may be permanent. It took a day for the input buffer to operate normally.
+
+## 1. 4 Attacks on out Custom MiddleWare OPC UA Server
+We also ran several known OPCUA CVEs on our opcua middleware server residing at Raspberry Pi Here, the primary focus was to determine is DoS is possible, if targeted on our custom-built `OPC UA server,`  or proprietary `S7-1200 Server`.
+
+These attacks were run using very useful open-source framework available in the following [this](https://github.com/claroty/opcua-exploit-framework.git) repository by  **Claroty Team82**
+
+Using these frameworks, we focused on running known unique exploits targeted to opcua-python server. In all the case the command was:
+```
+python main.py opcua-python 192.168.100.10 4840 opc.tcp://192.168.100.10:4840 [attack_name/ function key]
+```
+
+we run the following attacks against this server:
+- `chuck_flood`
+- `open_multiple_secure_channels`
+- `close_session_with_old_timestamp`
+- `complex_nested_message`
+- `translate_browse_path_call_stack_overflow`
+- `func_call_nul_deref`
+
+All of these attacks are catestrophic Denial of Service attacks, that aim to kill the server and render it un-available to clients.
+
+we found out that all these attack except `func_call_null_deref` resulted in server raising sequence out of order exception and 'spec says close connection' as shown in the picture(will provide the picture, nicely labelled). The server did not stop serving the Scada, and polling data from the PLCs using three heterogeneous clients,
+
+during attacking of `func_call_null_deref`, however, the attack successfully result in server downfalling, and disconnected it from the PLC clients, and the Scada.(pictures showing this should be provided)
+
+
+We acknowledge that this is small set of attacks, and we envision to exploit more and more attcks in the future. (worth noting, this is not a penetration testing paper, we just demonstrated that our testbed is useful, and usable Remember to sell it along that lines)

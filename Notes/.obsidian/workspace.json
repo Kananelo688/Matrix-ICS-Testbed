@@ -80,8 +80,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "right": {
     "id": "f5b2d20aba68dc2b",
@@ -187,16 +186,17 @@
   },
   "active": "af24d504ef255e6e",
   "lastOpenFiles": [
+    "OPC UA (Open Platform Communications Unified Architecture).md",
+    "Experiments_for_Matrix_Testbed.md",
+    "Pasted image 20260905094217.png",
     "avg_packet_size_comparison.png",
     "throughput_bytes_per_sec_boxplot.png",
     "fig_matrix_latency_ecdf.png",
     "ModbusTCP.md",
     "Untitled.canvas",
-    "Experiments_for_Matrix_Testbed.md",
     "Ladder Logic Tutorial.md",
     "Ignition Scada.md",
     "NetworkSetup.md",
-    "OPC UA (Open Platform Communications Unified Architecture).md",
     "Arduino Opta.md",
     "ICS Testbeds.md",
     "ICS Literature.md",

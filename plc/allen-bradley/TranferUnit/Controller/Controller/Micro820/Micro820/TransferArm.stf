@@ -1,0 +1,62 @@
+FUNCTION_BLOCK TransferArm
+CASE State OF
+	0:
+		IF partAvailable AND _IO_EM_DI_06 AND SchneiderModbusHandshake = 0 AND startCommand THEN //If PartAvailable, and TurntableInPosition, rotate to go and get it.
+			State := 1;
+			controllerActive := TRUE;
+		END_IF;
+	1:
+		IF _IO_EM_DI_05 AND startCommand THEN //If TRANSFER UNIT ON Turntable side, move to state 2
+			State := 2;
+			UnitPositionCode := 1; // POSITION CODE 1 == AT-TURNTABLE
+		ELSE
+			_IO_EM_DO_04 := TRUE; //Otherwise, keep rotating towards the turntable.
+		END_IF;
+	2:
+		_IO_EM_DO_06 := TRUE; //Start the Vacuum Gripping
+		_IO_EM_DO_04 := FALSE; // Stop the rotation towards the turntable direction
+		IF GrippingTimer.Q AND startCommand THEN // if the timer is done, then transition to State = 3
+			State := 3;
+		END_IF;
+	3:
+		//start rotation towards the conveyor
+		IF _IO_EM_DI_04 AND startCommand THEN // If TRANSFER UNIT on the Conveyor side, stop and start dropping
+			State := 4;
+			UnitPositionCode := 2; // POSITION CODE 2 == AT-CONVEYOR
+		ELSE
+			_IO_EM_DO_05 := TRUE; //Else, just keep on rotating towards the conveyor.
+			UnitPositionCode := 3; // POSITION CODE 3 == TRANSFERUNIT IN TRASIENT (TO THE CONVEYOR)
+		END_IF;
+	4:
+		_IO_EM_DO_05 := FALSE; // Stop rotation towards the conveyor.
+		_IO_EM_DO_06 := FALSE; // Stop the gripping (Vacuum gripper)
+		//if dropping timer is Done, Transition to State 5.
+		IF DroppingTimer.Q AND startCommand THEN
+			SeimensModbusHandshake := 2; //Notify Siemens that Data Has been dropped.
+			State := 5;
+			UnitPositionCode := 0; // POSITION CODE = 0 == UNKNOWN!
+		END_IF;
+	5:
+		IF RetreatingTimer.Q AND startCommand THEN
+			_IO_EM_DO_04 := FALSE; //Stop rotating towards the turntable (stop retreat)
+			SchneiderModbusHandshake := 1; //Notify Schneider that the transfer is Complete.
+			State := 0; // Go back to IDLE state
+			controllerActive:= FALSE;
+		ELSE
+			_IO_EM_DO_04 := TRUE; // Otherwise, keep on retreating.
+		END_IF;
+END_CASE;
+
+//Call for Timers
+
+// Gripping Timer Conditions: TurntableInPosition, and TransferUnit on Turntable side.
+GrippingTimer(IN:= State = 2 AND startCommand AND _IO_EM_DI_05 AND _IO_EM_DI_06, PT:= T#1500ms); // Set Gripping to just 1.5 seconds.
+
+//DroppingTimer: TransferUnit on Conveyor side, and Suction Vacuum Pump ON.
+DroppingTimer(IN:= State = 4 AND startCommand AND _IO_EM_DI_04, PT:= T#1000ms);
+RetreatingTimer(IN:= State = 5 AND startCommand, PT:= T#800ms);
+
+IF Schneider_Handshake_ACK = 2 THEN
+	SchneiderModbusHandshake := 0;
+END_IF;
+END_FUNCTION_BLOCK

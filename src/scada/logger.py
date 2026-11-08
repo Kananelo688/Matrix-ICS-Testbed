@@ -85,8 +85,8 @@ NAMESPACE_URI  = "urn:MATRIX.Middleware.OPC-UA"       # must match opcua_server.
 
 # SPAN / monitoring NIC on the SCADA PC (from `dumpcap -D`). The device path is
 # the most stable way to name it; the friendly name is here for humans.
-SPAN_NIC       = r"\Device\NPF_{5BD8448F-DC4B-49B1-B53C-6A91DDAD0DDA}"
-SPAN_NIC_NAME  = "Matrix-Monitoring-NIC"
+SPAN_NIC = r"\Device\NPF_{04671A5F-66CE-4D9A-B85A-37F416583AE7}"
+SPAN_NIC_NAME = "MATRIX_Monitoring_NIC"   # after you rename Ethernet 2
 DUMPCAP        = "dumpcap"            # on PATH (Wireshark); or set a full path
 
 DB_DEFAULT       = os.path.join("database", "matrix.db")

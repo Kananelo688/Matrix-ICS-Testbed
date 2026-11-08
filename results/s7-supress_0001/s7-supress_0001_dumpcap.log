@@ -1,0 +1,4 @@
+Capturing on 'MATRIX_Monitoring_NIC'
+File: results\s7-supress_0001\s7-supress_0001.pcap
+Packets captured: 37499
+Packets received/dropped on interface 'MATRIX_Monitoring_NIC': 37499/0 (pcap:0/dumpcap:0/flushed:0/ps_ifdrop:0) (100.0%)

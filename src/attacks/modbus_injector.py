@@ -83,16 +83,51 @@ def now_iso():
 
 
 # ==========================================================================
-# MODBUS HELPERS (pymodbus 3.x; uses slave=; for 2.x change slave= to unit=)
+# MODBUS HELPERS — version-proof across pymodbus 2.x / 3.x / 4.x.
+# The unit/slave-id keyword was renamed across versions:
+#   2.x: unit=   | 3.x: slave=   | 4.x: device_id=
+# We detect which keyword the installed pymodbus accepts, ONCE, and reuse it.
 # ==========================================================================
+_UNIT_KW = None   # resolved on first use: one of "device_id", "slave", "unit"
+
+def _resolve_unit_kw(client, unit):
+    """Find which unit-id keyword this pymodbus accepts (and confirm it works)."""
+    global _UNIT_KW
+    import inspect
+    # Prefer introspection of the method signature, newest name first.
+    try:
+        params = inspect.signature(client.read_holding_registers).parameters
+        for kw in ("device_id", "slave", "unit"):
+            if kw in params:
+                _UNIT_KW = kw
+                return
+    except (TypeError, ValueError):
+        pass
+    # Fallback: probe by trying each keyword with a harmless read.
+    for kw in ("device_id", "slave", "unit"):
+        try:
+            client.read_holding_registers(address=0, count=1, **{kw: unit})
+            _UNIT_KW = kw
+            return
+        except TypeError:
+            continue            # wrong keyword name for this version
+        except Exception:
+            _UNIT_KW = kw        # keyword accepted; the read itself may have errored
+            return
+    raise RuntimeError("could not determine pymodbus unit-id keyword")
+
 def read_reg(client, address, unit):
-    rr = client.read_holding_registers(address=address, count=1, slave=unit)
+    if _UNIT_KW is None:
+        _resolve_unit_kw(client, unit)
+    rr = client.read_holding_registers(address=address, count=1, **{_UNIT_KW: unit})
     if rr.isError():
         raise RuntimeError(f"read reg{address} failed: {rr}")
     return rr.registers[0]
 
 def write_reg(client, address, value, unit):
-    wr = client.write_register(address=address, value=value, slave=unit)
+    if _UNIT_KW is None:
+        _resolve_unit_kw(client, unit)
+    wr = client.write_register(address=address, value=value, **{_UNIT_KW: unit})
     if wr.isError():
         raise RuntimeError(f"write reg{address}={value} failed: {wr}")
     return True

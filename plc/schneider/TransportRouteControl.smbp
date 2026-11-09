@@ -10102,7 +10102,9 @@
       <DownloadPassword />
     </ApplicationProtection>
     <RemoteIpAddresses>
-      <IpAddresses />
+      <IpAddresses>
+        <string>192.168.50.50</string>
+      </IpAddresses>
     </RemoteIpAddresses>
     <ModemConfigurations>
       <ModemConfigurationEntities />

@@ -9,7 +9,7 @@ WHAT IT DOES (one invocation == one experiment run)
        (e.g. you pass "baseline" → it creates "baseline_0001", next time
        "baseline_0002"; passing "baseline_0007" is treated the same as
        "baseline" — the trailing _NNNN is stripped and re-allocated, so you can
-       NEVER accidentally overwrite an earlier run).
+       all its data (DB rows + results folder) — see --id help.
     2. Starts a packet capture (dumpcap) on the SPAN/monitoring NIC, writing
        results/<run_id>/<run_id>.pcap  — the logger OWNS the capture.
     3. Connects to the Pi middleware OPC-UA server as a client (exactly like
@@ -131,8 +131,8 @@ TAG_MAP = {
     "weldingPart":                ("Turntable",    "Welding Part",               "bool"),
     "drillPart":                  ("Turntable",    "Drill Part",                 "bool"),
     "siemensStartCommand":        ("Turntable",    "Siemens Start Command",      "bool"),
-    "siemensStopCommand":         ("Turntable",    "Siemens Stop Command",       "bool"),
-    "siemensResetCommand":        ("Turntable",    "Siemens Reset Command",      "bool"),
+    # "siemensStopCommand":         ("Turntable",    "Siemens Stop Command",       "bool"),
+    # "siemensResetCommand":        ("Turntable",    "Siemens Reset Command",      "bool"),
     "workpiecesCount":            ("Turntable",    "Completed Workpieces Count", "int"),
     "siemensPeerCommunicationOk": ("Turntable",    "Siemens PeerComm OK",        "bool"),
     "controllerActive":           ("Turntable",    "Siemens Active",             "bool"),
@@ -146,7 +146,8 @@ TAG_MAP = {
     "transferUnitAtTurntable":    ("TransferUnit", "Transfer Unit At Turntable", "bool"),
     "turntableInPosition":        ("TransferUnit", "Turntable In Position (AB)", "bool"),
     "siemensHandshakeCode":       ("TransferUnit", "Siemens Handshake Code",     "int"),
-    "arduinoHandshakeCode":       ("TransferUnit", "TM221 Handshake Code",       "int"),
+    "schneiderHandshakeCode":     ("TransferUnit", "Schneider Handshake Code", "int"),
+    "schneiderHandshakeACK":      ("TransferUnit", "Schneider Handshake ACK",  "int"),
     "transferUnitPositionCode":   ("TransferUnit", "Unit Position Code",         "int"),
 
     # --- Conveyor (Schneider TM221) ---
@@ -227,19 +228,87 @@ def db_connect(path: str) -> sqlite3.Connection:
     return conn
 
 
-def allocate_run_id(conn: sqlite3.Connection, raw_id: str) -> tuple[str, str, int]:
+def resolve_run_id(conn: sqlite3.Connection, raw_id: str) -> tuple[str, str, int, bool]:
     """
-    Strip any trailing _NNNN from raw_id to get the prefix, then allocate the
-    next sequence number for that prefix. Guarantees no collision/overwrite.
-    Returns (run_id, prefix, seq_num).
+    Decide the run_id and whether this run OVERWRITES an existing one.
+
+    Two intents, distinguished by whether you give a number:
+
+      * BARE PREFIX  (e.g. "baseline")        -> allocate the NEXT sequence number
+        (baseline_0001, _0002, ...). This is a brand-new run; never overwrites.
+
+      * EXPLICIT ID  (e.g. "baseline_0003",   -> use THAT EXACT id and OVERWRITE
+        or "baseline_3")                         everything already stored under
+                                                 it. This is the "redo this exact
+                                                 trial" case: when a trial gets
+                                                 corrupted and you want to run it
+                                                 again under the SAME id.
+
+    The number is normalised to 4 digits, so "baseline_3", "baseline_003" and
+    "baseline_0003" all resolve to the same canonical id "baseline_0003" — so a
+    redo finds and replaces the right trial regardless of how you typed it.
+
+    Returns:
+        (run_id, prefix, seq_num, overwrite)
+        overwrite == True  -> caller must purge any existing data for run_id first.
     """
-    prefix = re.sub(r"_\d+$", "", raw_id.strip())
+    raw = raw_id.strip()
+    prefix = re.sub(r"_\d+$", "", raw)
     if not prefix:
         raise ValueError("empty experiment id")
+
+    m = re.search(r"_(\d+)$", raw)
+    if m:
+        # Explicit id -> exact, OVERWRITE mode (redo this specific trial).
+        seq_num = int(m.group(1))
+        return f"{prefix}_{seq_num:04d}", prefix, seq_num, True
+
+    # Bare prefix -> allocate the next number (brand-new run).
     row = conn.execute("SELECT MAX(seq_num) FROM runs WHERE prefix = ?", (prefix,)).fetchone()
     seq_num = (row[0] or 0) + 1
-    run_id = f"{prefix}_{seq_num:04d}"
-    return run_id, prefix, seq_num
+    return f"{prefix}_{seq_num:04d}", prefix, seq_num, False
+
+
+def purge_run(conn: sqlite3.Connection, run_id: str, results_dir: str) -> tuple[int, bool]:
+    """
+    Delete EVERY trace of run_id so it can be re-recorded cleanly.
+
+    Removes, for this run_id:
+      * all state_events rows,
+      * all events rows,
+      * the runs registry row,
+      * the entire results/<run_id>/ folder (pcap, dumpcap log, any CSVs).
+
+    Called from: main_async(), when resolve_run_id() returned overwrite=True (an
+    explicit id) OR when the run_id already exists in the DB. This is what fixes
+    the "I deleted the folder but it still skipped to the next number" problem:
+    deleting the folder alone left the DB row behind; this clears BOTH.
+
+    The DB connection is in autocommit mode (isolation_level=None), so the
+    DELETEs take effect immediately.
+
+    Args:
+        conn: the SQLite connection.
+        run_id: the exact run id to wipe.
+        results_dir: base results directory (its <run_id> subfolder is removed).
+
+    Returns:
+        (n_state_rows_deleted, folder_removed)
+    """
+    import shutil
+    n_state = conn.execute(
+        "SELECT COUNT(*) FROM state_events WHERE run_id=?", (run_id,)
+    ).fetchone()[0]
+    conn.execute("DELETE FROM state_events WHERE run_id=?", (run_id,))
+    conn.execute("DELETE FROM events       WHERE run_id=?", (run_id,))
+    conn.execute("DELETE FROM runs         WHERE run_id=?", (run_id,))
+
+    folder = os.path.join(results_dir, run_id)
+    removed = False
+    if os.path.isdir(folder):
+        shutil.rmtree(folder, ignore_errors=True)
+        removed = True
+    return n_state, removed
 
 
 def export_runs_csv(conn: sqlite3.Connection, path: str = RUNS_CSV):
@@ -477,7 +546,18 @@ async def logging_session(conn, run_id, lock, stop_flag):
 
 async def main_async(args):
     conn = db_connect(args.db)
-    run_id, prefix, seq_num = allocate_run_id(conn, args.id)
+    run_id, prefix, seq_num, overwrite = resolve_run_id(conn, args.id)
+
+    # Redo/overwrite handling: if an explicit id was given (overwrite=True) OR a
+    # run with this id already exists, wipe ALL of its data first — DB rows
+    # (state_events, events, runs) AND the results/<run_id>/ folder (pcap + logs)
+    # — so re-running under the same id is a clean replacement, not a duplicate or
+    # a silent skip to the next number.
+    exists = conn.execute("SELECT 1 FROM runs WHERE run_id=?", (run_id,)).fetchone() is not None
+    if overwrite or exists:
+        n_state, removed = purge_run(conn, run_id, args.results)
+        log.warning(f"OVERWRITE {run_id}: purged {n_state} state rows, "
+                    f"{'deleted' if removed else 'no'} results folder — re-recording clean.")
 
     run_dir   = os.path.join(args.results, run_id)
     pcap_path = os.path.join(run_dir, f"{run_id}.pcap")
@@ -554,6 +634,11 @@ async def main_async(args):
 
 def build_parser():
     p = argparse.ArgumentParser(description="MATRIX experiment logger (capture + state log).")
+    # --id accepts two forms:
+    #   bare prefix  "baseline"       -> next number (new run): baseline_0001, ...
+    #   explicit id  "baseline_0003"  -> REDO that exact trial, OVERWRITING all its
+    #                                    data (DB rows + results/<id>/). "baseline_3"
+    #                                    and "baseline_003" also resolve to _0003.
     p.add_argument("--id", required=True,
                    help="experiment id / prefix, e.g. 'baseline' or "
                         "'tm221_modbus_injection'. Any trailing _NNNN is stripped "

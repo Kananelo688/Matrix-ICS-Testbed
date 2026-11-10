@@ -119,7 +119,7 @@ def _resolve_unit_kw(client, unit):
 def read_reg(client, address, unit):
     if _UNIT_KW is None:
         _resolve_unit_kw(client, unit)
-    rr = client.read_holding_registers(address=address, count=1, **{_UNIT_KW: unit})
+    rr = client.read_holding_registers(address=address, count=1, **{_UNIT_KW: unit}) #type: ignore
     if rr.isError():
         raise RuntimeError(f"read reg{address} failed: {rr}")
     return rr.registers[0]
@@ -127,7 +127,7 @@ def read_reg(client, address, unit):
 def write_reg(client, address, value, unit):
     if _UNIT_KW is None:
         _resolve_unit_kw(client, unit)
-    wr = client.write_register(address=address, value=value, **{_UNIT_KW: unit})
+    wr = client.write_register(address=address, value=value, **{_UNIT_KW: unit}) #type: ignore
     if wr.isError():
         raise RuntimeError(f"write reg{address}={value} failed: {wr}")
     return True

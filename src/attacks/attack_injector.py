@@ -783,7 +783,7 @@ def main():
     print("=" * 72)
     if args.dry_run:
         print("dry-run -- no changes made."); return 0
-    if os.geteuid() != 0:
+    if os.geteuid() != 0: #type: ignore
         print("ERROR: must run as root (NFQUEUE/iptables/arpspoof)."); return 2
 
     STATE["armed_ts"] = time.monotonic()
@@ -798,7 +798,7 @@ def main():
     try:
         setup_network(args, client_ip)
         nfqueue.bind(args.queue_num, handle)
-        s = socket.fromfd(nfqueue.get_fd(), socket.AF_UNIX, socket.SOCK_STREAM)
+        s = socket.fromfd(nfqueue.get_fd(), socket.AF_UNIX, socket.SOCK_STREAM) #type:ignore
         s.settimeout(0.5)
         print(f"[{now_iso()}] ARMED -- waiting"
               f"{' for trigger signal' if not CFG['time_mode'] else ''} ...")

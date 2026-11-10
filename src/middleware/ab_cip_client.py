@@ -85,6 +85,7 @@ TAG_MAP = {
     "SeimensModbusHandshake": "siemensHandshakeCode",
     "SchneiderModbusHandshake": "schneiderHandShakeCode",
     "UnitPositionCode": "unit_position_code",
+    "Schneider_Handshake_ACK": "schneiderHandshakeACK",
 }
 
 # --------------------------------------------------------------------------

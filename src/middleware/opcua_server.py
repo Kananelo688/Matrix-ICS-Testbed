@@ -191,9 +191,11 @@ TRANSFER_UNIT_NODES = [
     ("transferUnitAtConveyor",      "Transfer Unit At Conveyor",      ua.VariantType.Boolean, False, "S1 — limit switch at conveyor belt end"),
     ("transferUnitAtTurntable",     "Transfer Unit At Turntable",     ua.VariantType.Boolean, False, "S2 — limit switch at turntable end"),
     ("turntableInPosition",         "Turntable In Position (AB)",     ua.VariantType.Boolean, False, "S4 — turntable home position (AB-side read)"),
+    
     # Holding registers
     ("siemensHandshakeCode",        "Siemens Handshake Code",         ua.VariantType.Int16,   False, "Handshake register read from Siemens"),
-    ("arduinoHandshakeCode",        "TM221 Handshake Code",           ua.VariantType.Int16,   False, "Handshake register read from TM221"),
+    ("schneiderHandShakeCode",        "Schneider Handshake Code",           ua.VariantType.Int16,   False, "Handshake register read from Schneider"),
+    ("schneiderHandshakeACK",        "Schneider Handshake ACK",           ua.VariantType.Int16,   False, "Handshake register written by Schneider"),
     
     ("transferUnitPositionCode",    "Unit Position Code",             ua.VariantType.Int16,   False, "0=Unknown 1=AtTable 2=AtBelt 3=InTransit"),
 ]

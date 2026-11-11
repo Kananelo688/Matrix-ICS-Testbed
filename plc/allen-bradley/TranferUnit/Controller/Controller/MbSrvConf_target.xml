@@ -25,13 +25,13 @@
     </mapping>
   </modbusRegister>
   <modbusRegister name="HOLDING_REGISTERS">
-    <mapping variable="SeimensModbusHandshake" parent="Micro820" dataType="Int" address="400001" va="0x468">
+    <mapping variable="SeimensModbusHandshake" parent="Micro820" dataType="Int" address="400001" va="0x46a">
       <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
     </mapping>
-    <mapping variable="SchneiderModbusHandshake" parent="Micro820" dataType="Int" address="400002" va="0x464">
+    <mapping variable="SchneiderModbusHandshake" parent="Micro820" dataType="Int" address="400002" va="0x466">
       <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
     </mapping>
-    <mapping variable="Schneider_Handshake_ACK" parent="Micro820" dataType="Int" address="400003" va="0x466">
+    <mapping variable="Schneider_Handshake_ACK" parent="Micro820" dataType="Int" address="400003" va="0x468">
       <MBVarInfo ElemType="Int" SubElemType="Any" DataTypeSize="2" />
     </mapping>
   </modbusRegister>

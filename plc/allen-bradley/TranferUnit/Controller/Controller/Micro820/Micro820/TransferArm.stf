@@ -54,7 +54,7 @@ GrippingTimer(IN:= State = 2 AND startCommand AND _IO_EM_DI_05 AND _IO_EM_DI_06,
 
 //DroppingTimer: TransferUnit on Conveyor side, and Suction Vacuum Pump ON.
 DroppingTimer(IN:= State = 4 AND startCommand AND _IO_EM_DI_04, PT:= T#1000ms);
-RetreatingTimer(IN:= State = 5 AND startCommand, PT:= T#800ms);
+RetreatingTimer(IN:= State = 5 AND startCommand, PT:= T#100ms);
 
 IF Schneider_Handshake_ACK = 2 THEN
 	SchneiderModbusHandshake := 0;

@@ -1,0 +1,56 @@
+MATRIX timing extraction — experiment 'baseline30wps'
+t_min (debounce) = 0.5s   trials found = 5
+
+Transition counts per ACTUATOR (raw -> debounced), per trial:
+  signal                        0001          0002          0003          0004          0005
+  sliderMagazine              61->60        61->60        61->60        61->60        61->60
+  motorTurntable              65->64        65->64        65->64        65->64        65->64
+  drillActive                 61->60        61->60        61->60        61->60        61->60
+  weldActive                  61->60        61->60        61->60        61->60        61->60
+  rotateToConveyor            61->60        61->60        61->60        61->60        61->60
+  vacuumGripper               61->60        61->60        61->60        61->60        61->60
+  conveyorBelt                61->60        61->60        61->60        61->60        61->60
+  separatorValve              61->60        61->60        61->60        61->60        61->60
+  sliderMotor                 21->20        21->20        21->20        21->20        21->20
+
+Trial validation (gate = actuators match modal step-count after debounce):
+  modal actuator step-counts: sliderMagazine=60, motorTurntable=64, drillActive=60, weldActive=60, rotateToConveyor=60, vacuumGripper=60, conveyorBelt=60, separatorValve=60, sliderMotor=20
+  KEEP  baseline30wps_0001
+  KEEP  baseline30wps_0002
+  KEEP  baseline30wps_0003
+  KEEP  baseline30wps_0004
+  KEEP  baseline30wps_0005
+
+  kept 5/5 trials.
+
+Sensor step-counts across KEPT trials (reported; sensors do not gate):
+  turntableInPosition      [64, 64, 64, 64, 64]  consistent
+  magazineEmpty            [15, 13, 13, 7, 9]  VARIES
+  workpieceOnConveyor      [62, 60, 60, 60, 62]  VARIES
+  workpieceOnPallet        [2, 1, 1, 1, 1]  VARIES
+  palletReady              [0, 0, 0, 0, 0]  consistent
+  sliderInPosition         [20, 18, 18, 20, 20]  VARIES
+  transferUnitAtTurntable  [60, 60, 60, 60, 60]  consistent
+  transferUnitAtConveyor   [58, 56, 60, 56, 58]  VARIES
+
+wrote results\baseline30wps\process_states.csv  (855 rows: 17 signals)
+
+Short-pulse histogram (RAW, pre-debounce) — pick --t_min above the glitch band but below real actuations:
+  signal                <0.2s  <0.3s  <0.5s  <0.7s    min_s
+  sliderMagazine            0      0      0      0    0.998
+  motorTurntable            0      0      0      0    2.999
+  drillActive               0      0      0      0    1.999
+  weldActive                0      0      0      0    3.998
+  rotateToConveyor          0      0      0      0    0.999
+  vacuumGripper             0      0      0      0    1.999
+  conveyorBelt              0      0      0      0    1.992
+  separatorValve            0      0      0      0    1.992
+  sliderMotor               0      0      0      0    0.999
+  rotateToTable             0      0     74    190    0.389
+  turntableInPosition       0      0      0      0    3.000
+  magazineEmpty             0      0      0      0    0.998
+  workpieceOnConveyor       0      0      4     10    0.391
+  workpieceOnPallet         0      0      0      0   60.606
+  sliderInPosition          0      0      2      8    0.400
+  transferUnitAtTurntable      0      0      0      0    0.983
+  transferUnitAtConveyor      0      0      6      8    0.399

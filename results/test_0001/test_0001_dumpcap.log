@@ -1,0 +1,4 @@
+Capturing on '\Device\NPF_{04671A5F-66CE-4D9A-B85A-37F416583AE7}'
+dumpcap: You do not have permission to capture on device "\Device\NPF_{04671A5F-66CE-4D9A-B85A-37F416583AE7}".
+(The helper program for "Admin-only Mode" must be allowed to make changes to your device)
+Please check to make sure you have sufficient permissions.

@@ -147,7 +147,7 @@ TAG_MAP = {
     "turntableInPosition":        ("TransferUnit", "Turntable In Position (AB)", "bool"),
     "siemensHandshakeCode":       ("TransferUnit", "Siemens Handshake Code",     "int"),
     "schneiderHandshakeCode":     ("TransferUnit", "Schneider Handshake Code", "int"),
-    "schneiderHandshakeACK":      ("TransferUnit", "Schneider Handshake ACK",  "int"),
+    "schneiderHandshakeACK":        ("TransferUnit", "Schneider Handshake ACK",  "int"),
     "transferUnitPositionCode":   ("TransferUnit", "Unit Position Code",         "int"),
 
     # --- Conveyor (Schneider TM221) ---

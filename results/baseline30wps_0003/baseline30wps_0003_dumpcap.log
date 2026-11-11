@@ -1,4 +1,4 @@
 Capturing on 'MATRIX_Monitoring_NIC'
 File: results\baseline30wps_0003\baseline30wps_0003.pcap
-Packets captured: 85781
-Packets received/dropped on interface 'MATRIX_Monitoring_NIC': 85781/0 (pcap:0/dumpcap:0/flushed:0/ps_ifdrop:0) (100.0%)
+Packets captured: 85666
+Packets received/dropped on interface 'MATRIX_Monitoring_NIC': 85666/0 (pcap:0/dumpcap:0/flushed:0/ps_ifdrop:0) (100.0%)

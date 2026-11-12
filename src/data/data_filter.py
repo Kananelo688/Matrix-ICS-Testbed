@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-data_filter.py
+timing_data_extractor.py
 
-MATRIX Testbed
+MATRIX Testbed — process-state extraction engine (lives in src/data/).
 
-Decription:
+WHAT IT PRODUCES
     For a baseline experiment (N trials of the SAME 30-workpiece program), it
     reconstructs, PER SIGNAL, the ordered sequence of states (HIGH, LOW, HIGH, ...)
     and the AVERAGE DURATION of each state at each step position, pooled across the
@@ -13,6 +13,10 @@ Decription:
     all the way through the full 30-piece run. The result is written as a tidy CSV
     that a separate plotter lays out end-to-end into 30-piece timing diagrams.
 
+WHY A SEPARATE SCRIPT
+    This is the hard, correctness-critical step (glitch removal + trial
+    validation). Keeping it separate from plotting means the risky logic is
+    auditable and you can re-plot without re-extracting.
 
 THE PIPELINE (order matters)
     1. LOAD each signal per trial from the SQLite state log.
@@ -30,6 +34,16 @@ THE PIPELINE (order matters)
        k-th HIGH / k-th LOW), and average each step's duration across kept trials.
        (Alignment is by ordinal, never by wall-clock time.)
 
+TAXONOMY (edit ACTUATORS / SENSORS below if the plant changes)
+    ACTUATORS (KEY — gate on these): sliderMagazine, motorTurntable, drillActive,
+        weldActive, rotateToTable, rotateToConveyor, vacuumGripper, conveyorBelt,
+        separatorValve, sliderMotor.
+    SENSORS  (included, reported, NOT gating): turntableInPosition (from Siemens
+        inPosition), magazineEmpty, workpieceOnConveyor, workpieceOnPallet,
+        palletReady, sliderInPosition, transferUnitAtTurntable,
+        transferUnitAtConveyor.
+    EXCLUDED (not physical): handshake codes, DB-internal flags (transferPart,
+        drillPart, ...), heartbeats, *_connected, workpiecesCount.
 
 OUTPUTS
     results/<experiment-id>/process_states.csv   — one row per
@@ -39,7 +53,7 @@ OUTPUTS
         skip (so you know what to fix before re-running).
 
 USAGE
-    python3 src/data/data_filter.py --experiment-id baseline30wps --t_min 0.5
+    python3 src/data/timing_data_extractor.py --experiment-id baseline30wps --t_min 0.5
     # tune the glitch threshold after reading the report's short-pulse histogram.
 
 Author : MATRIX / Intelligent Connectivity Group — UCT
@@ -55,9 +69,9 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-# 
+# ==========================================================================
 # SIGNAL TAXONOMY
-# 
+# ==========================================================================
 # ACTUATORS are the KEY, GATING signals: a trial inconsistent on any of these
 # (after debounce) is skipped entirely. All nine are empirically reproducible
 # (identical debounced step-count across trials).
@@ -71,7 +85,7 @@ ACTUATORS = [
 #   rotateToTable: the AB ST code drives this motor flag in TWO controller states
 #   per piece (State 1 = table approach, State 5 = an 800 ms retreat), and the
 #   arm hunts near the limit switch, so the number of >0.5 s pulses varies
-#   run-to-run. Its reproducible counterpart is the LIMIT-SWITCH
+#   run-to-run (39/35/43/38/44). Its reproducible counterpart is the LIMIT-SWITCH
 #   sensor transferUnitAtTurntable (consistent), which stays in SENSORS below. We
 #   therefore report rotateToTable but gate the transfer stage on rotateToConveyor
 #   (reproducible) + the limit-switch sensors.
@@ -100,9 +114,9 @@ RENAME       = {"inPosition": "turntableInPosition"}   # source tag -> canonical
 DROP_RAW_TAGS = {"turntableInPosition"}                # the AB copy, by its raw name
 
 
-
+# ==========================================================================
 # DB LOAD
-
+# ==========================================================================
 def load_db(db_path, prefix):
     """Load all state_events for runs matching '<prefix>_%' as a DataFrame.
 
@@ -138,25 +152,45 @@ def load_db(db_path, prefix):
     return df
 
 
-#
+# ==========================================================================
 # SIGNAL RECONSTRUCTION + DEBOUNCE
-# 
-def signal_segments(times, vals):
+# ==========================================================================
+def signal_segments(times, vals, end_time=None):
     """Collapse a transition list into contiguous (value, start, end) segments.
 
-    Called from: debounce() and extract_steps(). Consecutive equal values are
-    merged, so the result is strictly alternating in value.
+    Called from: extract_steps(). Each logged row is a transition INTO value
+    vals[i] at times[i]; the segment for vals[i] runs until the NEXT transition.
+    Consecutive equal values are merged, so the result is strictly alternating.
+
+    IMPORTANT (bug fix): the LAST logged transition (times[-1], vals[-1]) is the
+    signal entering its FINAL state and holding it to the end of the run. It has
+    no "next transition" to bound it, so it must be closed with end_time (the
+    run's end). Previously this final state was dropped, which shifted every
+    signal's sequence by one and made it end on the wrong state (e.g. sliderMagazine
+    appearing to end HIGH when it physically ends LOW).
 
     Args:
         times (np.ndarray): transition timestamps (monotonic), sorted.
-        vals  (np.ndarray): value at/after each transition (0/1).
+        vals  (np.ndarray): value entered at each transition (0/1).
+        end_time (float|None): timestamp to close the final segment. Defaults to
+            times[-1] + the median inter-transition gap if not given.
 
     Returns:
-        list[tuple]: [(value, t_start, t_end), ...] covering [times[0], times[-1]].
+        list[tuple]: [(value, t_start, t_end), ...] including the final state.
     """
+    if len(times) == 0:
+        return []
+    if end_time is None:
+        gap = float(np.median(np.diff(times))) if len(times) > 1 else 0.0
+        end_time = float(times[-1]) + gap
+    # Build boundaries: every transition starts a segment; the last one is closed
+    # with end_time so the final state is retained.
+    bounds = list(times) + [end_time]
     segs = []
-    for i in range(len(times) - 1):
-        v, t0, t1 = vals[i], times[i], times[i + 1]
+    for i in range(len(times)):
+        v, t0, t1 = vals[i], bounds[i], bounds[i + 1]
+        if t1 <= t0:
+            continue
         if segs and segs[-1][0] == v:              # merge equal-valued neighbours
             segs[-1] = (v, segs[-1][1], t1)
         else:
@@ -226,7 +260,11 @@ def extract_steps(df_run, tag, t_min):
     g = df_run[df_run["tag"] == tag].sort_values("ts_monotonic")
     if len(g) < 2:
         return []
-    segs = signal_segments(g["ts_monotonic"].to_numpy(), g["num"].to_numpy())
+    # Close the signal's final state at the RUN's end (last event of any signal in
+    # this trial), so the held terminal state spans to the end of the run.
+    run_end = float(df_run["ts_monotonic"].max())
+    segs = signal_segments(g["ts_monotonic"].to_numpy(), g["num"].to_numpy(),
+                           end_time=run_end)
     segs = debounce(segs, t_min)
 
     # Per-signal gate-min-width: drop HIGH pulses shorter than the signal's
@@ -255,9 +293,9 @@ def extract_steps(df_run, tag, t_min):
     return [(int(v), t1 - t0) for (v, t0, t1) in segs]
 
 
-# 
+# ==========================================================================
 # MAIN EXTRACTION
-# 
+# ==========================================================================
 def run(args):
     df = load_db(args.db, args.experiment_id)
     runs = sorted(df["run_id"].unique())
@@ -270,11 +308,11 @@ def run(args):
     rpt(f"t_min (debounce) = {args.t_min}s   trials found = {len(runs)}")
     rpt("")
 
-    # Canonicalise: drop AB position copy, rename Siemens inPosition 
+    # --- Canonicalise: drop AB position copy, rename Siemens inPosition ---
     df = df[~df["tag"].isin(DROP_RAW_TAGS)].copy()
     df["tag"] = df["tag"].replace(RENAME)
 
-    # Per-trial debounced step sequences for every signal 
+    # --- Per-trial debounced step sequences for every signal ---
     # steps[run][tag] = [(state, dur), ...]
     steps = {r: {} for r in runs}
     for r in runs:
@@ -282,7 +320,7 @@ def run(args):
         for tag in SIGNALS:
             steps[r][tag] = extract_steps(gr, tag, args.t_min)
 
-    # Transition-count tables BEFORE vs AFTER debounce (for the report)
+    # --- Transition-count tables BEFORE vs AFTER debounce (for the report) ---
     def raw_count(r, tag):
         return int((df[(df.run_id == r) & (df.tag == tag)]).shape[0])
 
@@ -297,7 +335,7 @@ def run(args):
         rpt(f"  {tag:<20}" + "".join(f"{c:>14}" for c in cells))
     rpt("")
 
-    # Modal actuator step-count across trials; gate each trial
+    # --- Modal actuator step-count across trials; gate each trial ---
     modal = {}
     for tag in ACTUATORS:
         counts = [len(steps[r][tag]) for r in runs]
@@ -335,29 +373,80 @@ def run(args):
     rpt("")
 
     # --- Positional (step-ordinal) averaging over KEPT trials ---
-    # For each signal, align by step index; average duration of step k across the
-    # kept trials that have a step k. Also carry the modal STATE of step k.
+    # Each signal's step sequence is averaged by POSITION. But signals whose step
+    # count varies across trials (noisy sensors, e.g. magazineEmpty 16/14/14/8/10)
+    # cannot be front-averaged past the point where trials diverge, and naive
+    # min()-truncation DROPS the true final transition, leaving the waveform ending
+    # on a spurious mid-run state (e.g. sliderMagazine shown ending HIGH, or
+    # magazineEmpty ending LOW, when physically they do the opposite).
+    #
+    # Fix — anchor BOTH ends:
+    #   * FRONT: average positional steps 0..(min_len-2), which every trial shares.
+    #   * BACK:  append one final step carrying the TRUE TERMINAL STATE that every
+    #            kept trial ends on (the physically-correct last state), with its
+    #            duration averaged from each trial's own last step.
+    # For consistent-count signals this reduces to the full sequence (and fixes the
+    # off-by-one that previously dropped the final LOW step). For inconsistent
+    # signals it averages the agreed prefix, then jumps to the agreed ending — no
+    # fabricated final state.
+    # A signal is AVERAGED by step position ONLY if its step count is reproducible
+    # across kept trials (same count in every trial — true for the gated actuators
+    # and clean sensors). Positional averaging of a signal whose count VARIES
+    # (noise-prone light barriers, e.g. magazineEmpty with 8..16 blinks per trial)
+    # is invalid: it fabricates a sequence that matches no real run and misplaces
+    # the one reproducible event. For those signals we instead emit a REPRESENTATIVE
+    # single trial — the one whose step count is the median — preserving the real
+    # waveform (real blinks, real terminal transition) without fabrication.
     rows = []
+    rep_report = []
     for tag in SIGNALS:
-        # number of steps to average = min across kept trials (so step k exists
-        # in every averaged trial). For actuators this equals modal by construction.
         if not kept:
             continue
-        lengths = [len(steps[r][tag]) for r in kept]
-        nsteps = min(lengths) if lengths else 0
-        cum = 0.0
-        for k in range(nsteps):
-            durs = [steps[r][tag][k][1] for r in kept]
-            states = [steps[r][tag][k][0] for r in kept]
-            state = Counter(states).most_common(1)[0][0]   # modal state at step k
-            mean = float(np.mean(durs)); std = float(np.std(durs))
-            rows.append({
-                "signal": tag, "role": ROLE[tag], "step_index": k,
-                "state": state, "mean_dur_s": round(mean, 4),
-                "std_s": round(std, 4), "n_trials": len(durs),
-                "cum_start_s": round(cum, 4),
-            })
-            cum += mean
+        seqs = {r: steps[r][tag] for r in kept}
+        lengths = {r: len(s) for r, s in seqs.items()}
+        if min(lengths.values()) == 0:
+            continue
+        reproducible = len(set(lengths.values())) == 1
+
+        if reproducible:
+            # --- AVERAGE positionally (every trial has the same step sequence) ---
+            n = next(iter(lengths.values()))
+            cum = 0.0
+            for k in range(n):
+                durs   = [seqs[r][k][1] for r in kept]
+                states = [seqs[r][k][0] for r in kept]
+                state  = Counter(states).most_common(1)[0][0]
+                rows.append({
+                    "signal": tag, "role": ROLE[tag], "step_index": k, "state": state,
+                    "mean_dur_s": round(float(np.mean(durs)), 4),
+                    "std_s": round(float(np.std(durs)), 4),
+                    "n_trials": len(durs), "cum_start_s": round(cum, 4),
+                    "method": "averaged",
+                })
+                cum += float(np.mean(durs))
+        else:
+            # --- REPRESENTATIVE trial (median step count) — real, not averaged ---
+            ordered = sorted(kept, key=lambda r: lengths[r])
+            rep = ordered[len(ordered) // 2]                 # median-count trial
+            rep_report.append((tag, rep, dict(sorted(Counter(lengths.values()).items()))))
+            cum = 0.0
+            for k, (state, dur) in enumerate(seqs[rep]):
+                rows.append({
+                    "signal": tag, "role": ROLE[tag], "step_index": k, "state": int(state),
+                    "mean_dur_s": round(float(dur), 4), "std_s": 0.0,
+                    "n_trials": 1, "cum_start_s": round(cum, 4),
+                    "method": f"representative({rep[-4:]})",
+                })
+                cum += float(dur)
+
+    rpt("Signals shown as a REPRESENTATIVE trial (non-reproducible step count; "
+        "averaging would fabricate a sequence):")
+    if rep_report:
+        for tag, rep, dist in rep_report:
+            rpt(f"  {tag:<24} rep={rep[-4:]}  (counts across trials: {dist})")
+    else:
+        rpt("  (none — all signals had reproducible step counts)")
+    rpt("")
 
     out_df = pd.DataFrame(rows)
     out_dir = os.path.join(args.results, args.experiment_id)

@@ -1,0 +1,66 @@
+MATRIX timing extraction — experiment 'baseline6wps'
+t_min (debounce) = 0.5s   trials found = 10
+
+Transition counts per ACTUATOR (raw -> debounced), per trial:
+  signal                        0001          0002          0003          0004          0005          0006          0007          0008          0009          0010
+  sliderMagazine              13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13        11->11        13->13
+  motorTurntable              17->17        17->17        17->17        17->17        17->17        17->17        17->17        17->17        15->15        15->15
+  drillActive                 13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13        11->11        13->13
+  weldActive                  13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13        11->11        13->13
+  rotateToConveyor            13->13        13->13        13->13        13->13        13->13          1->0          1->0          1->0          1->0          1->0
+  vacuumGripper               13->13        13->13        13->13        13->13        13->13          1->0          1->0          1->0          1->0          1->0
+  conveyorBelt                13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13
+  separatorValve              13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13        13->13
+  sliderMotor                   5->5          5->5          5->5          5->5          5->5          5->5          5->5          5->5          5->5          5->5
+
+Trial validation (gate = actuators match modal step-count after debounce):
+  modal actuator step-counts: sliderMagazine=13, motorTurntable=17, drillActive=13, weldActive=13, rotateToConveyor=13, vacuumGripper=13, conveyorBelt=13, separatorValve=13, sliderMotor=5
+  KEEP  baseline6wps_0001
+  KEEP  baseline6wps_0002
+  KEEP  baseline6wps_0003
+  KEEP  baseline6wps_0004
+  KEEP  baseline6wps_0005
+  SKIP  baseline6wps_0006  — inconsistent actuator(s): rotateToConveyor(0!=13), vacuumGripper(0!=13)
+  SKIP  baseline6wps_0007  — inconsistent actuator(s): rotateToConveyor(0!=13), vacuumGripper(0!=13)
+  SKIP  baseline6wps_0008  — inconsistent actuator(s): rotateToConveyor(0!=13), vacuumGripper(0!=13)
+  SKIP  baseline6wps_0009  — inconsistent actuator(s): sliderMagazine(11!=13), motorTurntable(15!=17), drillActive(11!=13), weldActive(11!=13), rotateToConveyor(0!=13), vacuumGripper(0!=13)
+  SKIP  baseline6wps_0010  — inconsistent actuator(s): motorTurntable(15!=17), rotateToConveyor(0!=13), vacuumGripper(0!=13)
+
+  kept 5/10 trials.
+
+Sensor step-counts across KEPT trials (reported; sensors do not gate):
+  turntableInPosition      [17, 17, 17, 17, 17]  consistent
+  magazineEmpty            [4, 4, 2, 4, 4]  VARIES
+  workpieceOnConveyor      [13, 13, 15, 13, 13]  VARIES
+  workpieceOnPallet        [2, 2, 2, 2, 2]  consistent
+  palletReady              [0, 0, 0, 0, 0]  consistent
+  sliderInPosition         [5, 5, 5, 5, 5]  consistent
+  transferUnitAtTurntable  [13, 13, 13, 13, 13]  consistent
+  transferUnitAtConveyor   [13, 13, 13, 13, 13]  consistent
+
+Signals shown as a REPRESENTATIVE trial (non-reproducible step count; averaging would fabricate a sequence):
+  rotateToTable            rep=0005  (counts across trials: {13: 3, 15: 1, 17: 1})
+  magazineEmpty            rep=0002  (counts across trials: {2: 1, 4: 4})
+  workpieceOnConveyor      rep=0004  (counts across trials: {13: 4, 15: 1})
+
+wrote results\baseline6wps\process_states.csv  (193 rows: 17 signals)
+
+Short-pulse histogram (RAW, pre-debounce) — pick --t_min above the glitch band but below real actuations:
+  signal                <0.2s  <0.3s  <0.5s  <0.7s    min_s
+  sliderMagazine            0      0      0      0    1.998
+  motorTurntable            0      0      0      0    2.999
+  drillActive               0      0      0      0    1.999
+  weldActive                0      0      0      0    3.400
+  rotateToConveyor          0      0      0      0    0.999
+  vacuumGripper             0      0      0      0    2.400
+  conveyorBelt              0      0      0      0    1.999
+  separatorValve            0      0      0      0    1.999
+  sliderMotor               0      0      0      1    0.600
+  rotateToTable             0      0     27     41    0.398
+  turntableInPosition       0      0      0      0    2.000
+  magazineEmpty             0      0      0      0    0.999
+  workpieceOnConveyor       0      0      1      1    0.398
+  workpieceOnPallet         0      0      0      0   61.805
+  sliderInPosition          0      0      0      2    0.600
+  transferUnitAtTurntable      0      0      0      0    1.000
+  transferUnitAtConveyor      0      0      0      4    0.596

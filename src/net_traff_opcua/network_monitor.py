@@ -2,8 +2,7 @@
 """
 network_monitor.py
 
-MATRIX Testbed - PLC-to-SCADA latency benchmark (runs on the SCADA PC).
-
+MATRIX Testbed - Network Traffic OPC-UA Server
 
 OVERVIEW
     This module reads the network traffic on the TSW212 switch
@@ -13,7 +12,7 @@ OVERVIEW
     This module can also, simultaneously, output the network log
     binaries, which can be piped to another module.
 
-INDEPENDENT USAGE
+CLI USAGE
     To run this module independently, use:
         python network_monitor.py --id experiment_id
 
@@ -77,11 +76,11 @@ class _TeeStream:
 # CONSTANTS ================================
 
 # Defaults
-DEFAULT_ARG_SPAN_NIC = r"\Device\NPF_{5BD8448F-DC4B-49B1-B53C-6A91DDAD0DDA}"
-DEFAULT_ARG_RESULTS = "results"
+_DEFAULT_ARG_SPAN_NIC = r"\Device\NPF_{5BD8448F-DC4B-49B1-B53C-6A91DDAD0DDA}"
+_DEFAULT_ARG_RESULTS = "results"
 
-SPAN_NIC_NAME = "Matrix-Monitoring-NIC"
-DUMPCAP = "dumpcap" # keyword to invoke `dumpcap` in the command line
+_SPAN_NIC_NAME = "Matrix-Monitoring-NIC"
+_DUMPCAP = "dumpcap" # keyword to invoke `dumpcap` in the command line
 
 # HELPER FUNCTIONS ================================
 
@@ -92,20 +91,20 @@ def _get_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: The arguments form the CLI
     """
-    parser = argparse.ArgumentParser(description="MATRIX SCADA network traffic monitor.")
-    parser.add_argument("--id", required=True, help= \
+    parser = argparse.ArgumentParser(description="MATRIX network traffic monitor.")
+    parser.add_argument("--id", required=True, help=
         "experiment id, e.g. 'baseline' or 'tm221_modbus_injection'"
     )
-    parser.add_argument("--description", default="", help= \
+    parser.add_argument("--description", default="", help=
         "free-text description for this run"
     )
-    parser.add_argument("--iface", default=DEFAULT_ARG_SPAN_NIC, help= \
+    parser.add_argument("--iface", default=_DEFAULT_ARG_SPAN_NIC, help=
         "capture interface (device path or name from `dumpcap -D`)"
     )
-    parser.add_argument("--results", default=DEFAULT_ARG_RESULTS, help= \
+    parser.add_argument("--results", default=_DEFAULT_ARG_RESULTS, help=
         "directory to save result in"
     )
-    parser.add_argument("-f", action="store_true", help= \
+    parser.add_argument("-f", action="store_true", help=
         "forces saving data to the directory, without checking if data is being overwritten"
     )
     return parser.parse_args()
@@ -168,6 +167,7 @@ def start_packet_capture(iface:str, pcap_path:str, log_path:str, stream:bool=Fal
         iface (str): The network interface that `dumpcap` monitors
         pcap_path (str): The file path to the target `.pcap` file
         log_path (str): The file path to the a target `.log` file for `dumpcap` logs
+        stream (bool): If the data should be streamed as well
     Returns:
         subprocess.Popen: The handle for the open pipe to the `dumpcap` subprocess
     Raises:
@@ -186,10 +186,10 @@ def start_packet_capture(iface:str, pcap_path:str, log_path:str, stream:bool=Fal
     `-q` limits number of logs to reduce console noise
     """
     if stream: # if the data should be streamed, not only written to the file
-        cmd = [DUMPCAP, "-i", iface, "-P", "-w", "-", "-q"]
+        cmd = [_DUMPCAP, "-i", iface, "-P", "-w", "-", "-q"]
         stdout = subprocess.PIPE
     else:
-        cmd = [DUMPCAP, "-i", iface, "-P", "-w", pcap_path, "-q"]
+        cmd = [_DUMPCAP, "-i", iface, "-P", "-w", pcap_path, "-q"]
         stdout = log_file
 
     # If on Windows, create a new process group, so Ctrl+C doesn't forcefully kill `dumpcap` as well

@@ -1,0 +1,2 @@
+# Python dependencies for Network Traffic OPC-UA Server
+dpkt

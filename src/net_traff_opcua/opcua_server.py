@@ -49,8 +49,8 @@ import packet_parser as pp
 
 # CONSTANTS ================================
 
-_ENDPOINT_URL = "opc.tcp://0.0.0.0:4840/matrix/" # TODO: Confirm with supervisor
-_NAMESPACE_URI = "http://matrix.uct.ac.za/scada" # TODO: Confirm with supervisor
+_ENDPOINT_URL = "opc.tcp://0.0.0.0:4841/net_traff_opcua/"
+_NAMESPACE_URI = "urn:uct_eee_matrix:net_traff_opcua"
 _BATCH_SIZE = 100 # size of buffer for OPC-UA nodes
 _FLUSH_TIMEOUT = 2.0 # maximum time in seconds for a partially filled batch to wait, until it's flushed
 _CHECK_INTERVAL = 0.5 # how often to check for timeouts when no packets arrive, in seconds

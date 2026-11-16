@@ -22,6 +22,10 @@ To run this subsystem, use:
 ```bash
 python opcua_server.py --id experiment_id
 ```
+In the root of this repository, the command would be:
+```bash
+python src/net_traff_opcua/opcua_server.py --id experiment_id
+```
 The optional flags for the invocation are:
 | Flag | Description |
 | :-- | :-- |
@@ -45,6 +49,10 @@ The Python dependencies can be found in the [requirements file](requirements_net
 They can be installed using `pip`:
 ```bash
 pip install -r requirements_net_traff_opcua.txt
+```
+In the root of this repository, the command would be:
+```bash
+pip install -r src/net_traff_opcua/requirements_net_traff_opcua.txt
 ```
 
 # Modules

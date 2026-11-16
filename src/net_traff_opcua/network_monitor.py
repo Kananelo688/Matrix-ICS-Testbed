@@ -83,7 +83,9 @@ class _TeeStream:
 # CONSTANTS ================================
 
 # Defaults
-_DEFAULT_ARG_SPAN_NIC = r"\Device\NPF_{5BD8448F-DC4B-49B1-B53C-6A91DDAD0DDA}"
+# _DEFAULT_ARG_SPAN_NIC = r"\Device\NPF_{5BD8448F-DC4B-49B1-B53C-6A91DDAD0DDA}" # outdated
+# _DEFAULT_ARG_SPAN_NIC = r"\Device\NPF_{04671A5F-66CE-4D9A-B85A-37F416583AE7}" # GUID
+_DEFAULT_ARG_SPAN_NIC = "MATRIX_Monitoring_NIC" # name
 _DEFAULT_ARG_RESULTS = "results"
 
 # CLI Keywords
@@ -189,12 +191,12 @@ def start_packet_capture(iface:str, pcap_path:str, log_path:str, stream:bool=Fal
     # Create the command for `dumpcap` and select the output
     """
     `-i` specifies the interface
-    `-P` makes the output type classic pcap
+    `-F` specifies the format of the output (using `-P` is deprecated, and `pcap` is classic pcap)
     `-w` specifies what to write to (`-` is stdout)
     `-q` limits number of logs to reduce console noise
     """
     if stream: # if the data should be streamed, not only written to the file
-        cmd = [_DUMPCAP, "-i", iface, "-P", "-w", "-", "-q"]
+        cmd = [_DUMPCAP, "-i", iface, "-F", "pcap", "-w", "-", "-q"]
         stdout = subprocess.PIPE
     else:
         cmd = [_DUMPCAP, "-i", iface, "-P", "-w", pcap_path, "-q"]

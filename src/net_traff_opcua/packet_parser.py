@@ -22,7 +22,7 @@ CLI USAGE
     
     The `recipient_program` must expect JSON strings, in the format shown below:
     {
-        "group": ...,
+        "channel": ...,
         "packet": {
             "timestamp": ...,
             "length": ...,
@@ -79,18 +79,22 @@ MODULE USAGE
     except KeyboardInterrupt:
         pass
     finally:
-        nm.stop_packet_capture(h)
+        nm.stop_packet_capture(handler)
         # note that `no_file` isn't a file pointer, so it doesn't have to be closed
     ```
+
+Author : MATRIX / Intelligent Connectivity Group - UCT
 """
          
 # IMPORTS ================================
 
+# External
 import argparse
 import json
 import socket
 import sys
 from dataclasses import asdict, dataclass
+import ipaddress
 from typing import BinaryIO, Iterator
 import dpkt
 
@@ -150,12 +154,12 @@ _CHANNELS:list[tuple[str,str]] = [
     (_NAME_MIDDLEWARE, _NAME_ALLEN_BRADLEY),
     (_NAME_MIDDLEWARE, _NAME_SIEMENS),
     (_NAME_SCHNEIDER, _NAME_ALLEN_BRADLEY),
-    (_NAME_ALLEN_BRADLEY, _NAME_SCHNEIDER),
+    (_NAME_ALLEN_BRADLEY, _NAME_SIEMENS),
 ]
 _UNKNOWN_CHANNEL:str = "Unknown"
 
 # Channel look-up dict
-_CHANNEL_LOOKUP:dict[frozenset,str]
+_CHANNEL_LOOKUP:dict[frozenset,str] = {}
 for pair in _CHANNELS:
     _CHANNEL_LOOKUP[frozenset(pair)] = f"{pair[0]} <-> {pair[1]}"
 
@@ -213,10 +217,24 @@ def _match_endpoint(ip:str|None, mac:str) -> str|None:
     Returns:
         str|None: The name of the endpoint
     """
+    # Initialize best match
+    best, best_len = None, -1
+
+    # Iterate to find best match
     for endpoint in _ENDPOINTS:
-        if (endpoint.ip and endpoint.ip == ip) or (endpoint.mac and endpoint.mac == mac):
+        # Compare MAC address, which'll be an instant best match
+        if endpoint.mac and endpoint.mac == mac:
             return endpoint.name
-    return None
+
+        # Compare IP address
+        if endpoint.ip and ip: # if the IP addresses exist
+            net = ipaddress.ip_network(endpoint.ip, strict=False) # "x.x.x.x" becomes a /32
+            if ipaddress.ip_address(ip) in net and net.prefixlen > best_len: # if the IP address exists within the subnet, and this match is better
+                best = endpoint.name
+                best_len = net.prefixlen
+    
+    # Return best match
+    return best
 
 def _classify(info:PacketInfo) -> str:
     """
@@ -231,7 +249,7 @@ def _classify(info:PacketInfo) -> str:
     success = True
 
     # Get the source and destination names
-    info.src_name = _match_endpoint(info.src_ip, info.dst_mac)
+    info.src_name = _match_endpoint(info.src_ip, info.src_mac)
     if info.src_name is None:
         info.src_name = ""
         success = False

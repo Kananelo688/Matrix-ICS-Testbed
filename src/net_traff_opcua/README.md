@@ -1,18 +1,50 @@
 # MATRIX-ICS-TESTBED - SCADA Layer
 
 # Table of Contents
+- [Overview](#overview)
 - [File Tree](#file-tree)
+- [Installation & Dependencies](#installation--dependencies)
 - [Modules](#modules)
     - [Network Monitor](#network-monitor)
     - [Packet Parser](#packet-parser)
+
+# Overview
+This subsystem monitors the network traffic at an interface (we recommend connecting it to a SPAN port),
+and publishes the network traffic information via an OPC-UA server. Each network channel (a predefined destination and source IP/MAC, and vice versa)
+is listed as its own OPC-UA variable node. The node stores a buffer of the network packets, which gets updated when:
+- a new batch of 100 packets is available to be published
+- a packet hasn't been published for over 2 seconds, triggering the entire channel to be published
+- the packet stream from `dumpcap` fails/terminates, so the remaining packets are published
+
+Packets are also saved to a classic `.pcap` file, in case using that for later analysis is easier.
+
+To run this subsystem, use:
+```bash
+python opcua_server.py --id experiment_id
+```
+The optional flags for the invocation are:
+| Flag | Description |
+| :-- | :-- |
+| `--description` | free-text description for this run |
+| `--iface` | capture interface (device path or name from `dumpcap -D`) |
+| `--results` | directory to save result in |
+| `-f` | (no argument) forces saving data to the directory, without checking if data is being overwritten |
 
 # File Tree
 ```
 net_traff_opcua/
 ┣━ network_monitor.py # monitors network traffic via a SPAN port
+┣━ opcua_server.py # runs the OPC-UA server using information from the other two modules
 ┣━ packet_parser.py # parses a packet stream into OPC-UA nodes
 ┣━ README.md # this file
-┗━ requirements.txt # python dependencies for the SCADA layer
+┗━ requirements_net_traff_opcua.txt # python dependencies for the SCADA layer
+```
+
+# Installation & Dependencies
+The Python dependencies can be found in the [requirements file](requirements_net_traff_opcua.txt).
+They can be installed using `pip`:
+```bash
+pip install -r requirements_net_traff_opcua.txt
 ```
 
 # Modules
@@ -57,7 +89,19 @@ def start_packet_capture(iface:str, pcap_path:str, log_path:str) -> subprocess.P
     Raises:
         RuntimeError: If `dumpcap` fails to start
     """
-...
+    ...
+```
+
+```python
+def trusted_start():
+    """
+    Allows this module to handle the startup.
+    This parses arguments and validates them the same way this module does, and forces a system exit upon failure.
+    This function already calls `start_packet_capture()`, so another call would cause issues.
+    Returns:
+        subprocess.Popen: The handle for the open pipe to the `dumpcap` subprocess
+    """
+    ...
 ```
 
 ```python
@@ -69,7 +113,7 @@ def stop_packet_capture(dumpcap_handle:subprocess.Popen):
     Raises:
         Exception: If failed to terminate `dumpcap`
     """
-...
+    ...
 ```
 
 ## Packet Parser
@@ -88,7 +132,7 @@ packet_stream | python packet_parser.py | recipient_program
 The `recipient_program` must expect JSON strings, in the format shown below:
 ```json
 {
-    "group": ...,
+    "channel": ...,
     "packet": {
         "timestamp": ...,
         "length": ...,

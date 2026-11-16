@@ -36,6 +36,13 @@ MODULE USAGE
         Raises:
             RuntimeError: If `dumpcap` fails to start
 
+    `trusted_start`
+        Allows this module to handle the startup.
+        This parses arguments and validates them the same way this module does, and forces a system exit upon failure.
+        This function already calls `start_packet_capture()`, so another call would cause issues.
+        Returns:
+            subprocess.Popen: The handle for the open pipe to the `dumpcap` subprocess
+            
     `stop_packet_capture`
         Stops the `dumpcap` process cleanly
         Args:
@@ -79,7 +86,7 @@ class _TeeStream:
 _DEFAULT_ARG_SPAN_NIC = r"\Device\NPF_{5BD8448F-DC4B-49B1-B53C-6A91DDAD0DDA}"
 _DEFAULT_ARG_RESULTS = "results"
 
-_SPAN_NIC_NAME = "Matrix-Monitoring-NIC"
+# CLI Keywords
 _DUMPCAP = "dumpcap" # keyword to invoke `dumpcap` in the command line
 
 # HELPER FUNCTIONS ================================
@@ -125,7 +132,8 @@ def _confirm_run_id(args:argparse.Namespace) -> bool:
         return True
 
     # Check if directory already exists
-    dir_path = os.path.abspath(args.results)
+    run_id:str = args.id.strip()
+    dir_path = os.path.abspath(os.path.join(args.results, run_id))
     if not os.path.isdir(dir_path):
         return True # the directory doesn't exist, and therefore is safe
     
@@ -154,8 +162,8 @@ def _get_file_paths(args:argparse.Namespace) -> tuple[str,str]:
         tuple[str,str]: The absolute path to the pcap and log files
     """
     run_id:str = args.id.strip()
-    pcap_path = os.path.join(args.results, f"{run_id}.pcap")
-    dumpcap_log = os.path.join(args.results, f"{run_id}_dumpcap.log")
+    pcap_path = os.path.join(args.results, run_id, f"{run_id}.pcap")
+    dumpcap_log = os.path.join(args.results, run_id, f"{run_id}_dumpcap.log")
     return (pcap_path, dumpcap_log)
 
 # API FUNCTIONS ================================
@@ -198,6 +206,7 @@ def start_packet_capture(iface:str, pcap_path:str, log_path:str, stream:bool=Fal
     else:
         creation_flags = 0
     dumpcap_handle = subprocess.Popen(cmd, stdout=stdout, stderr=log_file, creationflags=creation_flags)
+    dumpcap_handle._log_file = log_file # create a file member to be closed later
 
     # Check if `dumpcap` terminated immediately, possibly due to a bad `iface` or lack of permissions
     time.sleep(1.0)
@@ -224,6 +233,37 @@ def start_packet_capture(iface:str, pcap_path:str, log_path:str, stream:bool=Fal
     # Return the open pipe's handle
     return dumpcap_handle
 
+def trusted_start(stream:bool=False) -> subprocess.Popen:
+    """
+    Allows this module to handle the startup.
+    This parses arguments and validates them the same way this module does.
+    This function also forces a system exit upon failure.
+    This function already calls `start_packet_capture()`, so another call would cause issues.
+    Args:
+        stream (bool): If the data should be streamed as well
+    Returns:
+        subprocess.Popen: The handle for the open pipe to the `dumpcap` subprocess
+    """
+    # Get arguments from CLI
+    args = _get_args()
+
+    # Verify Run ID
+    confirmed = _confirm_run_id(args)
+    if not confirmed:
+        print("Cancelled")
+        sys.exit(0)
+
+    # Display arguments
+    _print_args(args)
+
+    # Start package capture
+    try:
+        dumpcap_handle = start_packet_capture(args.iface, *_get_file_paths(args), stream)
+        return dumpcap_handle
+    except Exception as e:
+        print(f"Failed to start packet capture:\n{e}")
+        sys.exit(2)
+
 def stop_packet_capture(dumpcap_handle:subprocess.Popen):
     """
     Stops the `dumpcap` process cleanly
@@ -235,28 +275,34 @@ def stop_packet_capture(dumpcap_handle:subprocess.Popen):
     # Check if the handle is invalid or `dumpcap` stopped for some other reason
     if (dumpcap_handle is None) or (dumpcap_handle.poll() is not None):
         return
+    if dumpcap_handle is None:
+        return
 
+    # Terminate `dumpcap`
     try:
-        if os.name == "nt": # if this is running on Windows
-            os.kill(dumpcap_handle.pid, signal.CTRL_BREAK_EVENT) # cleanly stop the process
-        else:
-            dumpcap_handle.send_signal(signal.SIGINT) # send an interrupt-signal
-        dumpcap_handle.wait(timeout=5.0) # give the process 5 seconds to terminate
-
-    # Terminating cleanly failed
-    except Exception:
-        try:
-            # Forcefully terminate
-            dumpcap_handle.terminate()
-            dumpcap_handle.wait(timeout=3)
-        except Exception as e:
-            raise Exception(f"Could not stop dumpcap process:\n{e}")
-
-    # Close the file pointer attached to the handle, used by the Tee Stream
+        if dumpcap_handle.poll() is None: # check if `dumpcap` is still running
+            try:
+                if os.name == "nt": # if this is running on Windows
+                    os.kill(dumpcap_handle.pid, signal.CTRL_BREAK_EVENT) # cleanly stop the process
+                else:
+                    dumpcap_handle.send_signal(signal.SIGINT) # send an interrupt-signal
+                dumpcap_handle.wait(timeout=5.0) # give the process 5 seconds to terminate
+            
+            # Terminating cleanly failed
+            except Exception:
+                try:
+                    # Forcefully terminate
+                    dumpcap_handle.terminate()
+                    dumpcap_handle.wait(timeout=3)
+                except Exception as e:
+                    raise Exception(f"Could not stop dumpcap process:\n{e}")
+    
+    # Close the file pointers attached to the handle
     finally:
-        file = getattr(dumpcap_handle, "_pcap_file", None)
-        if file: # if there's a file pointer
-            file.close()
+        for attr in ("_pcap_file", "_log_file"): # for each file
+            file = getattr(dumpcap_handle, attr, None)
+            if file: # if there's a file pointer
+                file.close()
 
 # MAIN ================================
 
@@ -266,25 +312,9 @@ if __name__ == "__main__":
         dumpcap_active = False
         dumpcap_handle = None
 
-        # Get arguments from CLI
-        args = _get_args()
-    
-        # Verify Run ID
-        confirmed = _confirm_run_id(args)
-        if not confirmed:
-            print("Cancelled")
-            sys.exit(0)
-
-        # Display arguments
-        _print_args(args)
-
-        # Start package capture
-        try:
-            dumpcap_handle = start_packet_capture(args.iface, *_get_file_paths(args))
-        except Exception as e:
-            print(f"Failed to start packet capture:\n{e}")
-            sys.exit(2)
-        dumpcap_active = True # not that dumpcap is running
+        # Attempt to start (may invoke system exit)
+        dumpcap_handle = trusted_start()
+        dumpcap_active = True # note that dumpcap is running
 
         # Wait for termination
         while True:

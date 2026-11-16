@@ -1,2 +1,3 @@
 # Python dependencies for Network Traffic OPC-UA Server
 dpkt
+asyncua==2.0.1

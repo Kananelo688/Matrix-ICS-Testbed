@@ -1,0 +1,252 @@
+{
+  "run_id": "t1_suppress",
+  "config": {
+    "pair": "s7-ab",
+    "transition": "ready",
+    "action": "suppress",
+    "register": 0,
+    "carrier": "write",
+    "signal_value": 1,
+    "to_value": 0,
+    "sensor_defended": false,
+    "transition_tag": "T1",
+    "trigger_mode": "event",
+    "hold_s": 15.0,
+    "re_arm_s": 10.0,
+    "iface": "eth1",
+    "client_ip": "192.168.50.10",
+    "ab_ip": "192.168.50.20",
+    "spoofer": "arpspoof"
+  },
+  "armed_wall": "2026-11-21T12:16:00.833333+00:00",
+  "stopped_wall": "2026-11-21T12:17:48.418488+00:00",
+  "n_attack_events": 3,
+  "attack_events": [
+    {
+      "index": 1,
+      "onset_wall": "2026-11-21T12:16:19.765181+00:00",
+      "close_wall": "2026-11-21T12:16:34.908304+00:00",
+      "dropped": 8,
+      "rewritten": 0,
+      "matched": 8
+    },
+    {
+      "index": 2,
+      "onset_wall": "2026-11-21T12:16:49.837201+00:00",
+      "close_wall": "2026-11-21T12:17:04.971414+00:00",
+      "dropped": 8,
+      "rewritten": 0,
+      "matched": 8
+    },
+    {
+      "index": 3,
+      "onset_wall": "2026-11-21T12:17:20.069984+00:00",
+      "close_wall": "2026-11-21T12:17:35.266015+00:00",
+      "dropped": 8,
+      "rewritten": 0,
+      "matched": 8
+    }
+  ],
+  "counters": {
+    "matched": 24,
+    "dropped": 24,
+    "rewritten": 0,
+    "passed": 4668,
+    "injected": 0
+  },
+  "events": [
+    {
+      "ts": "2026-11-21T12:16:19.765261+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:20.672952+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:21.771910+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:22.676036+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:23.776655+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:25.779682+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:26.671549+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:31.799014+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25319
+    },
+    {
+      "ts": "2026-11-21T12:16:49.837280+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:16:50.798992+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:16:51.841616+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:16:52.802037+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:16:53.857447+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:16:55.896976+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:16:56.805252+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:17:01.916703+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 25850
+    },
+    {
+      "ts": "2026-11-21T12:17:20.070058+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    },
+    {
+      "ts": "2026-11-21T12:17:21.027374+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    },
+    {
+      "ts": "2026-11-21T12:17:22.075024+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    },
+    {
+      "ts": "2026-11-21T12:17:23.027692+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    },
+    {
+      "ts": "2026-11-21T12:17:24.077148+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    },
+    {
+      "ts": "2026-11-21T12:17:26.082324+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    },
+    {
+      "ts": "2026-11-21T12:17:27.027870+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    },
+    {
+      "ts": "2026-11-21T12:17:32.134465+00:00",
+      "action": "drop_write",
+      "fc": 6,
+      "reg": 0,
+      "value": 1,
+      "txid": 26444
+    }
+  ],
+  "events_truncated": false
+}

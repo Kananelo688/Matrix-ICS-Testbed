@@ -358,11 +358,12 @@ def _handle(packet):
     to_value = CFG["to_value"]
     action   = CFG["action"]
     
-    # End the ACTIVE window on time even under a heavy packet stream (which can
-    # starve the main-loop clock). This enters COOLDOWN, not shutdown.
-    if STATE["phase"] == "active" and STATE["open_ts"] is not None \
-            and (time.monotonic() - STATE["open_ts"]) >= CFG["hold"]:
-        _close_event()
+    # Drive the FULL phase clock from inside the handler, not just the main loop.
+    # A deadlocked line FLOODS us with polls, so run_socket() may never return to
+    # let the main loop call check_timing() -- which previously starved the
+    # cooldown->re-arm transition (it only fired on Ctrl-C). Ticking here, per
+    # packet, advances hold-close AND cooldown->re-arm regardless of that.
+    _tick()
         
     # Track FC03 read REQUESTS so we can locate `reg` inside the matching REPLY.
     if to_ab and fc == FC_READ_HOLDING and len(load) >= 12:
@@ -508,35 +509,49 @@ def _close_event():
           f"-- re-arm in {CFG['re_arm']} s")
 
 
-def check_timing(args):
-    """Drive the arm/active/cooldown clock from the main loop (~2x/second).
+def _tick():
+    """Advance the arm/active/cooldown phase clock once, on wall-clock.
 
-    Called from: main()'s NFQUEUE loop between packet batches. Transitions:
+    Called from: BOTH the per-packet handler (so it advances even when run_socket
+    never yields under a packet flood) AND the main loop via check_timing() (so it
+    advances even when the line is silent and no packets arrive). Transitions:
         active   -> cooldown   when --hold   elapses  (stop acting, log the event)
         cooldown -> armed      when --re-arm elapses  (wait for the next trigger)
         armed    -> active     immediately, in TIME mode only (periodic attacks)
-    Runs INDEFINITELY — never sets finished (only Ctrl-C does).
-
-    Args:
-        args (argparse.Namespace): parsed CLI (unused here; kept for signature).
+    Idempotent and cheap; safe to call on every packet. Never sets finished.
 
     Returns:
         None.
     """
-    nowm = time.monotonic()
+    now = time.monotonic()
     if STATE["phase"] == "active" and STATE["open_ts"] is not None \
-            and (nowm - STATE["open_ts"]) >= CFG["hold"]:
+            and (now - STATE["open_ts"]) >= CFG["hold"]:
         _close_event()
         return
     if STATE["phase"] == "cooldown" and STATE["cooldown_ts"] is not None \
-            and (nowm - STATE["cooldown_ts"]) >= CFG["re_arm"]:
+            and (now - STATE["cooldown_ts"]) >= CFG["re_arm"]:
         STATE["phase"] = "armed"
         print(f"[{now_iso()}] RE-ARMED -- waiting for next trigger "
               f"(event #{STATE['event_index'] + 1}) ...")
         return
-    # TIME mode: fire immediately whenever armed (periodic: hold on, re-arm off).
     if CFG["time_mode"] and STATE["phase"] == "armed":
         _open_event()
+
+
+def check_timing(args):
+    """Main-loop entry to the phase clock (delegates to _tick).
+
+    Called from: main()'s NFQUEUE loop between packet batches. Exists so the clock
+    advances when the line is SILENT (no packets to drive the handler). Under a
+    packet flood the handler's own _tick() carries it instead.
+
+    Args:
+        args (argparse.Namespace): parsed CLI (unused; kept for signature).
+
+    Returns:
+        None.
+    """
+    _tick()
 
 
 #

@@ -60,10 +60,10 @@ except ImportError:
 
 # Configuration 
 
-SERVER_ENDPOINT = "opc.tcp://192.168.100.10:4840"
+SERVER_ENDPOINT = "opc.tcp://192.168.100.2:4840"
 NAMESPACE_URI   = "urn:MATRIX.Middleware.OPC-UA"
 SERVER_NAME     = "MATRIX ICS Testbed — Middleware OPC-UA Server"
-UPDATE_INTERVAL = 0.5  # seconds
+UPDATE_INTERVAL = 0.1  # seconds
 
 # --------------------------------------------------------------------------
 # CHANGE [SRV-2]: the XSS "exploit" node is only added when this is True.

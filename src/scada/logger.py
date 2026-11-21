@@ -73,7 +73,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
-from asyncua import Client, Node
+from asyncua import Client, Node  #type:ignore 
 from asyncua.common.subscription import DataChangeNotif
 
 # ==========================================================================
@@ -593,7 +593,7 @@ async def main_async(args):
         (run_id, prefix, seq_num, args.description,
          datetime.now(timezone.utc).isoformat(), "running",
          pcap_path if cap else None, dumpcap_log if cap else None,
-         OPC_URL, os.environ.get("COMPUTERNAME") or os.uname().nodename
+         OPC_URL, os.environ.get("COMPUTERNAME") or os.uname().nodename  #type:ignore 
          if hasattr(os, "uname") else os.environ.get("COMPUTERNAME", "")),
     )
     export_runs_csv(conn)
@@ -614,7 +614,7 @@ async def main_async(args):
     finally:
         stop_flag["stop"] = True
         # Order matters: finalize the critical, synchronous persistence first.
-        stop_capture(cap)                                   # finalize pcap
+        stop_capture(cap)       #type:ignore                            # finalize pcap
         with lock:
             conn.execute(
                 "UPDATE runs SET end_ts_utc=?, status=? WHERE run_id=?",

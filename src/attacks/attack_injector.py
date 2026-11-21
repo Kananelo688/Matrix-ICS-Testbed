@@ -83,6 +83,7 @@ Author : MATRIX / Intelligent Connectivity Group -- UCT
 import argparse
 import json
 import os
+import select
 import signal
 import socket
 import subprocess
@@ -840,18 +841,32 @@ def main():
     try:
         setup_network(args, client_ip)
         nfqueue.bind(args.queue_num, handle)
-        s = socket.fromfd(nfqueue.get_fd(), socket.AF_UNIX, socket.SOCK_STREAM) #type:ignore
+        fd = nfqueue.get_fd()
+        s = socket.fromfd(fd, socket.AF_UNIX, socket.SOCK_STREAM) #type:ignore
         s.settimeout(0.5)
         print(f"[{now_iso()}] ARMED -- waiting"
               f"{' for trigger signal' if not CFG['time_mode'] else ''} ...")
+        # IMPORTANT: we gate packet processing with select() so the phase clock
+        # (check_timing) runs every ~0.2 s REGARDLESS of whether packets arrive.
+        # A successful suppress DEADLOCKS the line -> inter-PLC traffic stops ->
+        # NFQUEUE goes quiet. Previously the loop blocked in run_socket() waiting
+        # for packets that never came, so the re-arm timer never advanced (it only
+        # fired when Ctrl-C interrupted the blocked call). select() with a timeout
+        # guarantees the cooldown->re-arm transition happens on wall-clock even
+        # with zero traffic.
         while not STATE["finished"]:
             try:
-                nfqueue.run_socket(s)
-            except socket.timeout:
-                pass
-            except Exception as exc:
-                print(f"nfqueue error: {exc}")
-            check_timing(args)
+                ready, _, _ = select.select([fd], [], [], 0.2)
+            except (OSError, ValueError):
+                ready = []
+            if ready:                              # packets waiting -> process them
+                try:
+                    nfqueue.run_socket(s)
+                except socket.timeout:
+                    pass
+                except Exception as exc:
+                    print(f"nfqueue error: {exc}")
+            check_timing(args)                     # advance arm/active/cooldown clock
         s.close()
     finally:
         _close_event()                       # finalize an in-progress event (Ctrl-C)

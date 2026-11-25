@@ -89,9 +89,9 @@ SPAN_NIC = r"\Device\NPF_{04671A5F-66CE-4D9A-B85A-37F416583AE7}"
 SPAN_NIC_NAME = "MATRIX_Monitoring_NIC"   # after you rename Ethernet 2
 DUMPCAP        = "dumpcap"            # on PATH (Wireshark); or set a full path
 
-DB_DEFAULT       = os.path.join("database", "matrix.db")
+DB_DEFAULT       = os.path.join("results", "matrix.db")
 RESULTS_DEFAULT  = "results"
-RUNS_CSV         = os.path.join("database", "runs.csv")
+RUNS_CSV         = os.path.join("results", "runs.csv")
 
 SUB_PERIOD_MS    = 200     # OPC-UA subscription publishing interval (ms)
 HEARTBEAT_SEC    = 5       # write a heartbeat row this often (proves "alive")
